@@ -9,8 +9,8 @@ from tools import CodeReaderTool
 
 def get_code_content(file_path: str) -> dict:
     """
-    Bir ara fonksiyon: Sadece dosya içeriğini okur ve bir sözlük (dictionary) olarak döndürür.
-    Bu, LangChain Expression Language (LCEL) ile daha uyumlu çalışır.
+    An intermediate function: It only reads the file content and returns it as a dictionary.
+    This works more seamlessly with the LangChain Expression Language (LCEL).
     """
     code_reader = CodeReaderTool()
     content = code_reader.run(file_path)
@@ -20,33 +20,28 @@ def generate_readme_for_file(file_path: str):
     """
     README oluşturma sürecini yönetir.
     """
-    # 1. API Anahtarlarını ve ayarları yükle
+    # 1. Load API keys and settings
     load_dotenv()
     
     print("--- Klaro MVP ---")
     
-    # 2. Gerekli bileşenleri hazırla
-    # Geri gpt-4o-mini modelini kullanacak şekilde değiştirdim.
+    # 2. Prepare necessary components
     llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.2)
     
     output_parser = StrOutputParser()
 
-    # 3. LangChain Zincirini (Chain) oluştur
-
-    # Yeni bir RunnablePassthrough ile sabit bir 'project_name' değişkeni eklliyoruz.
-    # Varsayılan proje adı olarak dosya yolunu kullanıyoruz.
-    project_name = os.path.basename(file_path).split('.')[0].replace('_', ' ').title()
+    # 3. Create the LangChain chain
+    project_name = os.path.basename(file_path).split('.')[0].replace('_', ' ').title() # We use the file path as the default project name.
     
-    # Yeni 'project_info' adımını ekledik.
     project_info = RunnablePassthrough.assign(
-        project_name=lambda x: project_name # Dinamik olarak 'main' veya 'prompts' gibi bir isim verecek
+        project_name=lambda x: project_name # Dynamically assign a name such as 'main' or 'prompts'
     )
 
     chain = (
         {"file_path": RunnablePassthrough()}
-        # 1. Dosya içeriğini oku
+        # 1. Read the code content
         | RunnablePassthrough.assign(code_info=lambda x: get_code_content(x["file_path"]))
-        # 2. 'project_name' ve 'code_content' değişkenlerini oluştur ve PromptTemplate'e hazırla
+        # 2. Create the 'project_name' and 'code_content' variables and prepare them for the PromptTemplate.
         | {
             "project_name": lambda x: project_name, # Yeni eklenen kısım
             "code_content": lambda x: x["code_info"]["code_content"],
@@ -58,12 +53,12 @@ def generate_readme_for_file(file_path: str):
 
     print(f"1. Reading and processing '{file_path}'...")
     
-    # 4. Zinciri çalıştır ve README'yi oluştur
+    # 4. Run the chain to generate the README
     try:
-        print("2. Generating README.md via LLM (using gpt-4o-mini)...") # Model adını belirttiğimiz bir log ekledim.
+        print("2. Generating README.md via LLM (using gpt-4o-mini)...") # I added a logo with the model name specified.
         readme_content = chain.invoke(file_path)
 
-        # 5. Sonucu dosyaya kaydet
+        # 5. Save the result to a file
         generated_filename = "README_generated.md"
         print(f"3. Saving output to '{generated_filename}'...")
         with open(generated_filename, "w", encoding="utf-8") as f:
@@ -79,10 +74,10 @@ def generate_readme_for_file(file_path: str):
 
 
 if __name__ == "__main__":
-    # Kullanıcıdan dosya yolunu al
+    # Get the file path from the user
     target_file = input("Enter the path of the Python file to document: ")
     
-    # Dosyanın var olup olmadığını kontrol et
+    # If the file does not exist, print an error message
     if not os.path.exists(target_file):
         print(f"Error: File not found: {target_file}")
     else:
