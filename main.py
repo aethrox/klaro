@@ -34,10 +34,25 @@ def generate_readme_for_file(file_path: str):
     output_parser = StrOutputParser()
 
     # 3. LangChain Zincirini (Chain) oluştur
+
+    # Yeni bir RunnablePassthrough ile sabit bir 'project_name' değişkeni eklliyoruz.
+    # Varsayılan proje adı olarak dosya yolunu kullanıyoruz.
+    project_name = os.path.basename(file_path).split('.')[0].replace('_', ' ').title()
+    
+    # Yeni 'project_info' adımını ekledik.
+    project_info = RunnablePassthrough.assign(
+        project_name=lambda x: project_name # Dinamik olarak 'main' veya 'prompts' gibi bir isim verecek
+    )
+
     chain = (
         {"file_path": RunnablePassthrough()}
+        # 1. Dosya içeriğini oku
         | RunnablePassthrough.assign(code_info=lambda x: get_code_content(x["file_path"]))
-        | {"code_content": lambda x: x["code_info"]["code_content"]}
+        # 2. 'project_name' ve 'code_content' değişkenlerini oluştur ve PromptTemplate'e hazırla
+        | {
+            "project_name": lambda x: project_name, # Yeni eklenen kısım
+            "code_content": lambda x: x["code_info"]["code_content"],
+        }
         | README_PROMPT
         | llm
         | output_parser
