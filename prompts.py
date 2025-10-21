@@ -1,35 +1,40 @@
 from langchain_core.prompts import PromptTemplate
 
-# A more aggressive prompt template to ensure model compliance
+# The final, most strict prompt to enforce all formatting rules.
 readme_template = """
-**YOU MUST FOLLOW ALL FORMATTING RULES. THIS IS YOUR PRIMARY OBJECTIVE.**
+**CRITICAL INSTRUCTIONS: YOU MUST FOLLOW THESE RULES EXACTLY. FAILURE TO COMPLY WILL RESULT IN AN INVALID OUTPUT.**
 
-Your main task is to generate a professional README.md file.
-Your secondary task is to ensure all formatting is perfect.
+1.  **Primary Goal:** Generate the content for a professional README.md file based on the code provided.
+2.  **Formatting is MANDATORY and NON-NEGOTIABLE.**
 
-<formatting_rules>
-1.  Use proper Markdown for all sections, headers, and lists.
-2.  **CRITICAL RULE:** Enclose all file names, variable names, function names, and library names within single backticks (`).
-    -   **EXAMPLE:** Instead of writing "dotenv", you MUST write `dotenv`.
-    -   **EXAMPLE:** Instead of writing "generate_readme_for_file", you MUST write `generate_readme_for_file`.
-    -   **EXAMPLE:** Instead of writing "ChatOpenAI", you MUST write `ChatOpenAI`.
-3.  For multi-line code blocks, use triple backticks with the language identifier (e.g., ```bash or ```python).
-</formatting_rules>
+<output_format_rules>
+    <rule_1_no_wrapper>
+        **NO WRAPPER BLOCKS:** Your response MUST NOT be enclosed in a markdown code block (like ```markdown ... ```).
+        Your response must start DIRECTLY with the first line of the README file's content (e.g., `# Project Title`). Do not add any preamble or explanation.
+    </rule_1_no_wrapper>
+    
+    <rule_2_use_single_backticks>
+        **USE SINGLE BACKTICKS:** You MUST enclose every single file name, variable name, function name, class name, and library name in single backticks (`). This is a critical requirement for correctness.
+        -   **CORRECT EXAMPLE:** `gpt-4o`
+        -   **CORRECT EXAMPLE:** `CodeReaderTool`
+        -   **CORRECT EXAMPLE:** `main.py`
+        -   **CORRECT EXAMPLE:** `langchain`
+        -   **INCORRECT EXAMPLE:** gpt-4o, CodeReaderTool, main.py, langchain
+    </rule_2_use_single_backticks>
+    
+    <rule_3_use_code_fences>
+        **USE CODE FENCES FOR CODE:** Use triple backticks with a language identifier (e.g., ```python) for multi-line code snippets.
+    </rule_3_use_code_fences>
+</output_format_rules>
 
-Now, execute your main task.
-Generate a professional README.md based on the following file content.
+Now, based on the following code, generate the complete and perfectly formatted README.md file content.
 
-The README must include these sections:
-- **## Overview**: A brief summary of what the code does.
-- **## Usage**: An explanation of how to run or use the code.
-- **## Code Details**: A detailed description of the main functions or classes.
-
-Here is the code content from the file:
+**Code Content to Analyze:**
 ---
 {code_content}
 ---
 
-Generate the complete README.md file, strictly adhering to all rules specified within the <formatting_rules> tags.
+**Final Instruction:** Your generated output will be saved directly to a file. Ensure it starts with a `#` heading and adheres to every rule listed above without exception.
 """
 
 README_PROMPT = PromptTemplate(
