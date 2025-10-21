@@ -26,10 +26,8 @@ def generate_readme_for_file(file_path: str):
     print("--- Klaro MVP ---")
     
     # 2. Gerekli bileşenleri hazırla
-    # --- DEĞİŞİKLİK BURADA ---
-    # Modeli "gpt-4o-mini" yerine "gpt-4o" (tam sürüm) olarak değiştiriyoruz.
-    llm = ChatOpenAI(model="gpt-4o", temperature=0.2)
-    # --- DEĞİŞİKLİK SONU ---
+    # Geri gpt-4o-mini modelini kullanacak şekilde değiştirdim.
+    llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.2)
     
     output_parser = StrOutputParser()
 
@@ -62,7 +60,7 @@ def generate_readme_for_file(file_path: str):
     
     # 4. Zinciri çalıştır ve README'yi oluştur
     try:
-        print("2. Generating README.md via LLM (using gpt-4o)...") # Model adını belirttiğimiz bir log ekledim.
+        print("2. Generating README.md via LLM (using gpt-4o-mini)...") # Model adını belirttiğimiz bir log ekledim.
         readme_content = chain.invoke(file_path)
 
         # 5. Sonucu dosyaya kaydet
