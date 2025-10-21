@@ -1,9 +1,9 @@
-<div style="margin-bottom: 20px;" align="center">
+<div align="center">
   <img src="logo_transparent.png" alt="Klaro Logo" width="150"/>
   <h1>Klaro</h1>
   <strong>From Code to Clarity. Instantly.</strong>
 </div>
-
+<br />
 <p align="center">
   <a href="#"><img alt="Build Status" src="https://img.shields.io/github/actions/workflow/status/aethrox/klaro/main.yml?style=for-the-badge"></a>
   <a href="#"><img alt="License" src="https://img.shields.io/github/license/aethrox/klaro?style=for-the-badge&color=blue"></a>
