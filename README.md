@@ -41,7 +41,7 @@ Klaro bu süreci tamamen otomatikleştirir. Deponuzun adresini verin ve o size y
 ## 🚧 Status: Under Active Development
 
 Bu proje şu anda aktif geliştirme aşamasındadır. Tam yol haritası için proje planlama belgelerine bakabilirsiniz.
-*(Bu dokümanların da depoya eklenmesi önerilir.)*
+*(Bu dokümanların bir kopyasını daha sonra buraya yükleyeceğim.)*
 
 * `klaro_project_plan.md`
 * `klaro_tech_docs_guide.md`
