@@ -1,4 +1,4 @@
-<div align="center">
+<div style="margin-bottom: 20px;" align="center">
   <img src="logo_transparent.png" alt="Klaro Logo" width="150"/>
   <h1>Klaro</h1>
   <strong>From Code to Clarity. Instantly.</strong>
