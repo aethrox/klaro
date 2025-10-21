@@ -10,22 +10,23 @@ readme_template = """
 <output_format_rules>
     <rule_1_no_wrapper>
         **NO WRAPPER BLOCKS:** Your response MUST NOT be enclosed in a markdown code block (like ```markdown ... ```).
-        Your response must start DIRECTLY with the first line of the README file's content (e.g., `# Project Title`). Do not add any preamble or explanation.
+        Your response must start DIRECTLY with the first line of the README file's content, which is the project title.
     </rule_1_no_wrapper>
     
     <rule_2_use_single_backticks>
-        **USE SINGLE BACKTICKS:** You MUST enclose every single file name, variable name, function name, class name, and library name in single backticks (`). This is a critical requirement for correctness.
+        **USE SINGLE BACKTICKS:** You MUST enclose every single file name, variable name, function name, class name, and library name in single backticks (`).
         -   **CORRECT EXAMPLE:** `gpt-4o`
         -   **CORRECT EXAMPLE:** `CodeReaderTool`
-        -   **CORRECT EXAMPLE:** `main.py`
-        -   **CORRECT EXAMPLE:** `langchain`
-        -   **INCORRECT EXAMPLE:** gpt-4o, CodeReaderTool, main.py, langchain
     </rule_2_use_single_backticks>
     
     <rule_3_use_code_fences>
         **USE CODE FENCES FOR CODE:** Use triple backticks with a language identifier (e.g., ```python) for multi-line code snippets.
     </rule_3_use_code_fences>
 </output_format_rules>
+
+The title of the project is: **{project_name}**
+
+Your response must start with a level 1 heading using this title (e.g., `# {project_name}`).
 
 Now, based on the following code, generate the complete and perfectly formatted README.md file content.
 
@@ -34,10 +35,11 @@ Now, based on the following code, generate the complete and perfectly formatted 
 {code_content}
 ---
 
-**Final Instruction:** Your generated output will be saved directly to a file. Ensure it starts with a `#` heading and adheres to every rule listed above without exception.
+**Final Instruction:** Your generated output will be saved directly to a file. Ensure it starts with the `# {project_name}` heading and adheres to every rule listed above without exception.
 """
 
 README_PROMPT = PromptTemplate(
-    input_variables=["code_content"],
+    input_variables=["project_name", "code_content"],
     template=readme_template
 )
+
