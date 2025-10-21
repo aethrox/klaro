@@ -26,14 +26,14 @@ def generate_readme_for_file(file_path: str):
     print("--- Klaro MVP ---")
     
     # 2. Gerekli bileşenleri hazırla
-    llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.2)
+    # --- DEĞİŞİKLİK BURADA ---
+    # Modeli "gpt-4o-mini" yerine "gpt-4o" (tam sürüm) olarak değiştiriyoruz.
+    llm = ChatOpenAI(model="gpt-4o", temperature=0.2)
+    # --- DEĞİŞİKLİK SONU ---
+    
     output_parser = StrOutputParser()
 
     # 3. LangChain Zincirini (Chain) oluştur
-    # Adım 1: input'tan file_path'i al ve get_code_content fonksiyonuna gönder.
-    # Adım 2: Çıkan sonucu (code_content) README_PROMPT'a besle.
-    # Adım 3: Prompt'un çıktısını LLM'e gönder.
-    # Adım 4: LLM'in çıktısını metne dönüştür.
     chain = (
         {"file_path": RunnablePassthrough()}
         | RunnablePassthrough.assign(code_info=lambda x: get_code_content(x["file_path"]))
@@ -47,7 +47,7 @@ def generate_readme_for_file(file_path: str):
     
     # 4. Zinciri çalıştır ve README'yi oluştur
     try:
-        print("2. Generating README.md via LLM...")
+        print("2. Generating README.md via LLM (using gpt-4o)...") # Model adını belirttiğimiz bir log ekledim.
         readme_content = chain.invoke(file_path)
 
         # 5. Sonucu dosyaya kaydet
@@ -74,3 +74,4 @@ if __name__ == "__main__":
         print(f"Error: File not found: {target_file}")
     else:
         generate_readme_for_file(target_file)
+
