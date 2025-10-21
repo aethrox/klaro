@@ -12,36 +12,36 @@
 
 ## Overview
 
-`Klaro`, tüm kod tabanınızı otonom olarak okuyan, mantığını anlayan ve minimum insan müdahalesiyle net, profesyonel ve güncel teknik dokümantasyon (README'ler, API referansları ve geliştirici kılavuzları gibi) oluşturan bir yapay zeka ajanıdır.
+`Klaro` is an AI agent that autonomously reads your entire codebase, understands its logic, and generates clear, professional, and up-to-date technical documentation (such as README files, API references, and developer guides) with minimal human intervention.
 
 ### 💡 The Problem
 
-Dokümantasyon yazmak ve güncel tutmak zaman alıcı, sıkıcı ve genellikle ihmal edilen bir iştir. Bu durum teknik borca, yavaş adaptasyon süreçlerine ve verimsizliğe yol açar.
+Writing and maintaining documentation is a time-consuming, tedious, and often neglected task. This leads to technical debt, slow adaptation processes, and inefficiency.
 
 ### 🚀 The Solution
 
-Klaro bu süreci tamamen otomatikleştirir. Deponuzun adresini verin ve o size yüksek kaliteli dokümantasyon teslim etsin. Bu sayede geliştiriciler asıl işlerine, yani harika ürünler geliştirmeye odaklanabilir.
+Writing and maintaining documentation is a time-consuming, tedious, and often neglected task. This leads to technical debt, slow adaptation processes, and inefficiency.
 
 ## ✨ Features (Planned)
 
-* **Otonom Kod Analizi:** Tüm dosya ağacını okur, kilit mantığı belirler ve bileşenler arasındaki ilişkileri anlar.
-* **Çoklu Format Çıktısı:** Profesyonel Markdown (`README.md`), API referansları ve daha fazlasını üretir.
-* **Yapay Zeka Destekli Anlama:** Kodun derinlemesine anlaşılması için LangChain ve LangGraph aracılığıyla en gelişmiş LLM'leri (GPT-4o mini, Claude 3.5 Sonnet vb.) kullanır.
-* **Akıllı Model Yönlendirme:** Maliyeti optimize etmek için basit görevlerde (dosya listeleme) ucuz modelleri, karmaşık analizlerde (kod özetleme) güçlü modelleri kullanır.
-* **Stil Kılavuzu Entegrasyonu (RAG):** (Aşama 3) Projenizin tonunu ve stilini eşleştirmek için mevcut dokümanlarınızdan öğrenir.
+* **Autonomous Code Analysis:** Reads the entire file tree, identifies key logic, and understands the relationships between components.
+* **Multi-Format Output:** Generates professional Markdown (`README.md`), API references, and more.
+* **AI-Powered Understanding:** Utilizes the most advanced LLMs (GPT-4o mini, Claude 3.5 Sonnet, etc.) via LangChain and LangGraph for deep understanding of the code.
+* **Smart Model Steering:** Uses inexpensive models for simple tasks (file listing) and powerful models for complex analysis (code summarization) to optimize costs.
+* **Style Guide Integration (RAG):** (Step 3) Learns from your existing documents to match the tone and style of your project.
 
 ## 🛠 Technology Stack
 
 * **Core:** Python 3.9+
 * **AI Framework:** LangChain & LangGraph
-* **Models:** GPT-4o mini, Claude 3.5 Sonnet, Claude 3 Haiku (Agentic Router ile)
+* **Models:** GPT-4o mini, Claude 3.5 Sonnet, Claude 3 Haiku (With Agentic Router)
 * **Code Analysis:** `ast` (Abstract Syntax Tree), `GitPython`
 * **Observability:** LangSmith
 
 ## 🚧 Status: Under Active Development
 
-Bu proje şu anda aktif geliştirme aşamasındadır. Tam yol haritası için proje planlama belgelerine bakabilirsiniz.
-*(Bu dokümanların bir kopyasını daha sonra buraya yükleyeceğim.)*
+This project is currently in active development. You can refer to the project planning documents for the full roadmap.
+*(I will upload a copy of these documents here later.)*
 
 * `klaro_project_plan.md`
 * `klaro_tech_docs_guide.md`
