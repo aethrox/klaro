@@ -3,10 +3,7 @@ from typing import TypedDict, Annotated, Sequence
 
 # LangGraph and LangChain Imports
 from langgraph.graph import StateGraph, END
-# Claude'nin önerisine uygun olarak sadece ToolNode'u import ediyoruz.
 from langgraph.prebuilt import ToolNode 
-# ToolExecutor'ı burada import etmeyeceğiz.
-# from langchain.agents.executor import ToolExecutor # <-- BU SATIRI KALDIRDIK
 
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import BaseMessage, HumanMessage, ToolMessage
