@@ -36,10 +36,5 @@ Klaro automates the entire documentation process. It employs an advanced **Pure 
 ## 🚧 Status: Under Active Development
 This project is currently in active development, having completed **Stages 2 (Agent Core)**, **3 (RAG/Quality)**, and **4 (LangGraph Integration)** of the roadmap.
 
-You can refer to the project planning documents for the full roadmap.
-
-* `klaro_project_plan.md`
-* `klaro_tech_docs_guide.md`
-
 ## License
 This project is licensed under the MIT License - see the [LICENSE](./LICENSE) file for details.
