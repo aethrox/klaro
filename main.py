@@ -1,85 +1,85 @@
 import os
-from langchain.tools import tool
+from dotenv import load_dotenv
+from langchain_openai import ChatOpenAI
+from langchain_core.output_parsers import StrOutputParser
+from langchain_core.runnables import RunnablePassthrough
 
-# Proje analizi için dikkate alınması gereken yaygın kod ve önemli konfigürasyon dosyaları.
-IMPORTANT_EXTENSIONS = ('.py', '.js', '.ts', '.jsx', '.tsx', '.html', '.css', '.md', '.json', '.yaml', '.yml', '.toml')
-IMPORTANT_FILES = ('requirements.txt', 'package.json', 'Dockerfile', 'LICENSE', '.gitignore', 'klaro_project_plan')
+from prompts import README_PROMPT
+from tools import CodeReaderTool
 
-@tool
-def list_files(directory: str = ".") -> str:
+def get_code_content(file_path: str) -> dict:
     """
-    Belirtilen dizin içindeki tüm önemli kod ve konfigürasyon dosyalarını listeler.
-    Ajana proje yapısını anlaması için genel bir bakış sağlar.
+    An intermediate function: It only reads the file content and returns it as a dictionary.
+    This works more seamlessly with the LangChain Expression Language (LCEL).
+    """
+    code_reader = CodeReaderTool()
+    content = code_reader.run(file_path)
+    return {"code_content": content}
+
+def generate_readme_for_file(file_path: str):
+    """
+    README oluşturma sürecini yönetir.
+    """
+    # 1. Load API keys and settings
+    load_dotenv()
     
-    Yalnızca önemli uzantılara sahip dosyaları ve belirlenmiş önemli dosyaları döndürür.
-    '.' ile başlayan gizli klasörleri (örneğin '.git', '.venv') yoksayar.
-
-    Args:
-        directory (str): Listelenecek dizin yolu. Varsayılan olarak mevcut dizindir (.).
-
-    Returns:
-        str: Proje yapısını gösteren, alt dizinleri ve önemli dosyaları içeren biçimlendirilmiş liste.
-             Hata durumunda hata mesajı döndürülür.
-    """
-    if not os.path.isdir(directory):
-        return f"Hata: Belirtilen dizin bulunamadı veya geçerli bir dizin değil: {directory}"
-
-    file_list = []
+    print("--- Klaro MVP ---")
     
-    # os.walk kullanarak alt dizinleri gez
-    for root, dirs, files in os.walk(directory):
-        # Gizli dizinleri (örn. .git, .venv, __pycache__) atla
-        dirs[:] = [d for d in dirs if not d.startswith('.') and d not in ('venv', 'node_modules', '__pycache__')]
+    # 2. Prepare necessary components
+    llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.2)
+    
+    output_parser = StrOutputParser()
 
-        for file in files:
-            # Dosya uzantısını ve temel dosya adını al
-            _, ext = os.path.splitext(file)
-            
-            # Tam dosya yolu (ajanın read_file ile kullanacağı)
-            full_path = os.path.join(root, file)
-            # Ajana gösterilecek göreceli yol
-            relative_path = os.path.relpath(full_path, start=directory)
-            
-            # Önemli dosyaları ve uzantıları filtrele
-            is_important_file = file in IMPORTANT_FILES
-            is_important_extension = ext.lower() in IMPORTANT_EXTENSIONS
-            
-            if is_important_file or is_important_extension:
-                file_list.append(relative_path)
+    # 3. Create the LangChain chain
+    project_name = os.path.basename(file_path).split('.')[0].replace('_', ' ').title() # We use the file path as the default project name.
+    
+    project_info = RunnablePassthrough.assign(
+        project_name=lambda x: project_name # Dynamically assign a name such as 'main' or 'prompts'
+    )
 
-    if not file_list:
-        return f"Hata: Dizin ({directory}) içinde analiz için önemli bir dosya bulunamadı."
-        
-    # Listeyi alfabetik olarak sırala ve yeni satırlarla birleştir
-    return "\n".join(sorted(file_list))
+    chain = (
+        {"file_path": RunnablePassthrough()}
+        # 1. Read the code content
+        | RunnablePassthrough.assign(code_info=lambda x: get_code_content(x["file_path"]))
+        # 2. Create the 'project_name' and 'code_content' variables and prepare them for the PromptTemplate.
+        | {
+            "project_name": lambda x: project_name, # Yeni eklenen kısım
+            "code_content": lambda x: x["code_info"]["code_content"],
+        }
+        | README_PROMPT
+        | llm
+        | output_parser
+    )
 
-@tool
-def read_file(file_path: str) -> str:
-    """
-    Belirtilen bir dosya yolunun içeriğini okur ve döndürür.
-    Bu araç, CodebaseReaderTool tarafından listelenen dosyalardan bilgi almak için kullanılır.
-
-    Args:
-        file_path (str): Okunacak dosyanın yolu.
-
-    Returns:
-        str: Dosyanın içeriği veya hata mesajı.
-    """
+    print(f"1. Reading and processing '{file_path}'...")
+    
+    # 4. Run the chain to generate the README
     try:
-        # Dosyaları UTF-8 ile okumayı dene
-        with open(file_path, "r", encoding="utf-8") as f:
-            content = f.read()
-        
-        # İçeriği LLM'in bağlam penceresini aşmaması için 5000 karakterle sınırla.
-        # Daha uzun dosyalar için ajanın sadece önemli kısmı istemesi teşvik edilir.
-        if len(content) > 5000:
-            return f"UYARI: Dosya çok uzun. Yalnızca ilk 5000 karakter okunmuştur. Toplam uzunluk: {len(content)} karakter.\n\n" + content[:5000]
-        
-        return content
+        print("2. Generating README.md via LLM (using gpt-4o-mini)...") # I added a logo with the model name specified.
+        readme_content = chain.invoke(file_path)
 
-    except FileNotFoundError:
-        return f"Hata: Dosya bulunamadı: {file_path}"
-    except UnicodeDecodeError:
-        return f"Hata: Dosya içeriği UTF-8 olarak okunamadı. Dosya ikili (binary) olabilir: {file_path}"
+        # 5. Save the result to a file
+        generated_filename = "README_generated.md"
+        print(f"3. Saving output to '{generated_filename}'...")
+        with open(generated_filename, "w", encoding="utf-8") as f:
+            f.write(readme_content)
+        
+        print("\n--- Process Complete ---")
+        print(f"Generated README content saved to {generated_filename}")
+
     except Exception as e:
-        return f"Dosya okuma hatası: {e}"
+        print("\n--- AN ERROR OCCURRED ---")
+        print(f"An error occurred during the generation process: {e}")
+        print("Please check your API keys, network connection, and file paths.")
+
+
+if __name__ == "__main__":
+    # Get the file path from the user
+    target_file = input("Enter the path of the Python file to document: ")
+    
+    # If the file does not exist, print an error message
+    if not os.path.exists(target_file):
+        print(f"Error: File not found: {target_file}")
+    else:
+        generate_readme_for_file(target_file)
+
