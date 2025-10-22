@@ -1,42 +1,55 @@
-# **Klaro Project Changelog**
+# **Changelog**
 
-All notable changes to the Klaro autonomous documentation agent project are documented here.
+All notable changes to this project will be documented in this file.
 
-The project follows the "Keep a Changelog" standard and adheres to semantic versioning principles.
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## **\[v0.2.0\] \- 2025-10-22 (Stable Agent Core & RAG Integration)**
-
-This is a major architectural release, completing **Stage 2 (Agentic Core)** and **Stage 3 (Quality/RAG)** of the project plan. The agent architecture was completely refactored for stability and advanced documentation features.
+## **\[0.4.0\] \- Unreleased**
 
 ### **Added**
 
-* **RAG (Retrieval-Augmented Generation) System:** Implemented core RAG functionality.  
-  * New dependencies: chromadb, tiktoken, langchain-text-splitters were added.  
-  * **New Tools:** init\_knowledge\_base (ChromaDB setup) and retrieve\_knowledge (information retrieval) were integrated to enforce documentation style.  
-* **Code Analyzer Tool:** The analyze\_code tool, utilizing Python's **Abstract Syntax Tree (AST)**, was fully integrated. This allows the agent to extract structural data (classes, functions, docstrings) from Python files.  
-* **Web Search Tool:** web\_search tool was added to gather external context and documentation for dependencies.  
-* **Environment Management:** Added python-dotenv to correctly load OPENAI\_API\_KEY from the .env file.
+* **LangGraph Architecture (Stage 4):** Implemented the final, most stable agent architecture using LangGraph (StateGraph, ToolNode, ToolExecutor). This provides robust state management, conditional routing, and self-healing capabilities \[cite: tech\_design\_advanced\_agent\_langgraph\].  
+* **RAG Integration:** Added init\_knowledge\_base and retrieve\_knowledge tools to tools.py to enable Retrieval-Augmented Generation \[cite: klaro\_project\_plan\].  
+* **Documentation Standard:** Added the CHANGELOG.md file itself and updated the README.md to reflect the Stage 3 & 4 features.
 
 ### **Changed**
 
-* **Core Agent Architecture (Critical Refactor):**  
-  * The unstable LangChain AgentExecutor and create\_react\_agent logic was replaced with a **Pure Python ReAct Loop**. This ensures agent functionality without reliance on specific, error-prone LangChain module imports.  
-* **Tool Standardization:**  
-  * The @tool decorator was removed from all functions in tools.py. Tools are now plain Python functions, resolving runtime errors like 'StructuredTool' object is not callable.  
-* **Project Language Standard:**  
-  * All system prompts (prompts.py), comments, and internal variables were fully **translated from Turkish to English** for international project standard and optimal LLM performance.
+* **Agent Core:** Replaced the fragile Pure Python ReAct loop with the native LangGraph/Tool Calling mechanism for reliable execution.  
+* **Dependencies:** Updated requirements.txt to include langgraph, chromadb, and langchain-text-splitters for RAG functionality.  
+* **Codebase Language:** All system prompts, comments, and project documentation were converted to English for standardization.
 
 ### **Fixed**
 
-* **Recurring Import Errors:** Resolved a chain of fatal ImportError and ModuleNotFoundError issues by migrating to the stable Pure Python ReAct model and correcting module paths for RAG components (e.g., langchain\_text\_splitters).  
-* **Parsing Robustness:** Improved the parse\_action function to reliably handle various action formats produced by the LLM (Action: tool\[param\] vs. Action: tool("param")).
+* **ModuleNotFoundError:** Resolved persistent import conflicts (e.g., langchain.agents.executor, langchain\_core.agents) by enforcing the use of the final, correct import path for ToolExecutor (a critical fix for LangGraph stability).
 
-## **\[v0.1.0\] \- 2025-09-20 (Initial Project Setup / MVP)**
-
-The initial version, establishing the basic project structure and initial agent logic.
+## **\[0.3.0\] \- Stage 3 Completion (RAG & Quality)**
 
 ### **Added**
 
-* **Project Structure:** Initial creation of main.py, tools.py, prompts.py, requirements.txt, and .gitignore.  
-* **Initial Tools:** Basic file exploration (list\_files) and content reading (read\_file) tools were created (CodebaseReaderTool MVP).  
-* **Basic Agent Logic:** Initial implementation used a simple LangChain Chain structure (not a full agent) to test basic LLM calls.
+* **Quality Control (RAG):** Implemented RAG via ChromaDB and OpenAI Embeddings to inject project style guides into the agent's context, ensuring high-quality, consistent output.  
+* **New Tools:** Added init\_knowledge\_base and retrieve\_knowledge to the toolset.  
+* **Mandatory Tool Use:** Updated prompts.py to force the agent to call retrieve\_knowledge before writing the Final Answer.
+
+### **Changed**
+
+* **Architecture:** The agent is now fully capable of both external (web) and internal (vector DB) information retrieval.
+
+## **\[0.2.0\] \- Stage 2 Completion (ReAct & AST Analysis)**
+
+### **Added**
+
+* **Autonomous Core:** Implemented the **Saf Python ReAct Loop** to allow the agent to make autonomous decisions (Thought \-\> Action \-\> Observation).  
+* **Deep Analysis Tool:** Added analyze\_code tool using Python's **AST (Abstract Syntax Tree)** library, enabling the agent to understand code structure (classes, functions, parameters) instead of just raw text.  
+* **New I/O Tools:** Added list\_files and enhanced read\_file.
+
+### **Fixed**
+
+* **Import/Call Errors:** Resolved errors like 'StructuredTool' object is not callable by removing the @tool decorator and using manual function calls (plain Python functions).
+
+## **\[0.1.0\] \- MVP (Minimum Viable Product)**
+
+### **Added**
+
+* **Initial Setup:** Project structure, .gitignore, and basic requirements.txt created.  
+* **Initial Agent:** Simple sequential LangChain Chain (not ReAct) established to perform basic file reading.  
+* **Dependencies:** Initial installation of langchain-core and langchain-openai.
