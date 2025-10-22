@@ -28,13 +28,13 @@ Klaro automates the entire documentation process. It employs an advanced **Pure 
 
 ## 🛠 Technology Stack
 * **Core:** Python 3.11+ (Current stable version)
-* **AI Framework:** LangChain (Tools & Prompts) & **LangGraph (Future Agent Orchestration)**
-* **Agent Core:** Pure Python ReAct Loop
+* **AI Framework:** LangChain (Tools & Prompts) & **LangGraph (Agent Orchestration)**
+* **Agent Core:** LangGraph State Machine (Stage 4 Completed)
 * **Vector DB/RAG:** ChromaDB, OpenAI Embeddings
 * **Code Analysis:** `ast` (Abstract Syntax Tree)
 
 ## 🚧 Status: Under Active Development
-This project is currently in active development, having completed **Stages 2 (Agent Core)** and **3 (RAG/Quality)** of the roadmap.
+This project is currently in active development, having completed **Stages 2 (Agent Core)**, **3 (RAG/Quality)**, and **4 (LangGraph Integration)** of the roadmap.
 
 You can refer to the project planning documents for the full roadmap.
 

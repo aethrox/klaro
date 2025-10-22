@@ -18,7 +18,8 @@ from prompts import SYSTEM_PROMPT
 from tools import list_files, read_file, analyze_code, web_search, init_knowledge_base, retrieve_knowledge 
 
 # --- 1. Configuration ---
-LLM_MODEL = "gpt-4o-mini" 
+LLM_MODEL = "gpt-4o-mini"
+RECURSION_LIMIT = int(os.getenv("KLARO_RECURSION_LIMIT", "50"))
 llm = ChatOpenAI(model=LLM_MODEL, temperature=0.2) 
 
 # --- 2. Tool Setup (LLM Binding) ---
@@ -32,8 +33,6 @@ tools = [
     Tool(name="web_search", func=web_search, description=web_search.__doc__),
     Tool(name="retrieve_knowledge", func=retrieve_knowledge, description=retrieve_knowledge.__doc__),
 ]
-
-tool_executor = tools
 
 # Bind the tools to the LLM model to enable Tool Calling functionality.
 model = llm.bind_tools(tools)
@@ -84,8 +83,8 @@ workflow = StateGraph(AgentState)
 
 # Add Nodes
 workflow.add_node("run_model", run_model)
-# When setting up ToolNode, we now provide the tool list directly instead of ToolExecutor.
-workflow.add_node("call_tool", ToolNode(tool_executor)) 
+# ToolNode handles the execution of the tools when the LLM requests them
+workflow.add_node("call_tool", ToolNode(tools)) 
 
 # Set Entry Point
 workflow.set_entry_point("run_model")
@@ -147,7 +146,7 @@ def run_klaro_langgraph(project_path: str = "."):
     
     try:
         # Run the LangGraph flow
-        final_state = app.invoke(inputs, {"recursion_limit": 50}) 
+        final_state = app.invoke(inputs, {"recursion_limit": RECURSION_LIMIT}) 
         
         # Extract the final message
         final_message = final_state["messages"][-1].content
