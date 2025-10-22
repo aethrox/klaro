@@ -16,8 +16,6 @@ VECTOR_DB_PATH = "./klaro_db"
 KLARO_RETRIEVER: VectorStoreRetriever | None = None
 
 # --- Helper Functions: .gitignore Content ---
-
-# Bu içerik, projenizin .gitignore dosyasından türetilmiştir.
 GITIGNORE_CONTENT = """
 # Byte-compiled / optimized / DLL files
 __pycache__/
@@ -32,7 +30,6 @@ __pycache__/
 env/
 venv/
 ENV/
-klaro-env/ 
 """
 
 def get_gitignore_patterns(gitignore_content: str) -> list[str]:
@@ -106,7 +103,7 @@ def list_files(directory: str = '.') -> str:
     tree_output = '\n'.join(output_lines)
     tree_output = tree_output.replace(os.path.basename(abs_dir), f"└── {os.path.basename(abs_dir)}/")
     
-    # LLM'in daha kolay okuması için temiz format
+    # Clean format for easier reading of the LLM
     return tree_output.replace('└──', '/').replace('├──', '├── ')
 
 
