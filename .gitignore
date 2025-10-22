@@ -131,8 +131,8 @@ celerybeat.pid
 .env
 .venv
 env/
-klaro-env/
-klaro_db/
+*env/
+*db/
 venv/
 ENV/
 env.bak/
