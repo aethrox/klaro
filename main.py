@@ -1,85 +1,176 @@
+# main.py - Final English Version (Saf Python ReAct)
+
 import os
-from dotenv import load_dotenv
+from dotenv import load_dotenv 
+load_dotenv() 
+
+import re
+import json
 from langchain_openai import ChatOpenAI
-from langchain_core.output_parsers import StrOutputParser
-from langchain_core.runnables import RunnablePassthrough
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.messages import HumanMessage
+from langchain_core.documents import Document # For RAG
 
-from prompts import README_PROMPT
-from tools import CodeReaderTool
+from prompts import SYSTEM_PROMPT 
+from tools import list_files, read_file, analyze_code, web_search, init_knowledge_base, retrieve_knowledge 
 
-def get_code_content(file_path: str) -> dict:
-    """
-    An intermediate function: It only reads the file content and returns it as a dictionary.
-    This works more seamlessly with the LangChain Expression Language (LCEL).
-    """
-    code_reader = CodeReaderTool()
-    content = code_reader.run(file_path)
-    return {"code_content": content}
+# --- 1. Configuration and Model Selection ---
+LLM_MODEL = "gpt-4o-mini" 
+llm = ChatOpenAI(model=LLM_MODEL, temperature=0.2) 
 
-def generate_readme_for_file(file_path: str):
-    """
-    README oluşturma sürecini yönetir.
-    """
-    # 1. Load API keys and settings
-    load_dotenv()
+# Collect all tools into a dictionary
+TOOLS = {
+    "list_files": list_files,
+    "read_file": read_file,
+    "analyze_code": analyze_code,
+    "web_search": web_search,
+    "retrieve_knowledge": retrieve_knowledge, # RAG tool
+}
+
+# Create a clean list of tool descriptions for the LLM prompt
+TOOL_DESCRIPTIONS = "\n".join([f"- {name}: {tool.__doc__.strip()}" for name, tool in TOOLS.items()])
+
+# --- 2. Prompt Template (Pure ReAct Format) ---
+REACT_PROMPT_TEMPLATE = """
+{system_prompt}
+
+Available Tools (Tools) and Descriptions:
+-------------------------
+{tool_descriptions}
+-------------------------
+
+Current Conversation History and Scratchpad (Thought, Action, Observation):
+{scratchpad}
+
+User's Task: {input}
+
+Please use the tools above, following the Thought and Action steps to complete the task.
+You MUST strictly adhere to the Action format: `Action: tool_name[parameter]` (Example: Action: list_files[.])
+To end the loop, provide your final answer in the format: **'Final Answer: [MARKDOWN_CONTENT]'**
+"""
+
+def parse_action(text: str) -> tuple[str, str] | None:
+    """Parses Action and parameter from the LLM's output."""
     
-    print("--- Klaro MVP ---")
+    # 1. Look for the standard Action pattern: Action: tool_name[param]
+    match = re.search(r"Action:\s*(\w+)\s*\[(.*?)\]", text, re.DOTALL)
     
-    # 2. Prepare necessary components
-    llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.2)
+    if match:
+        action = match.group(1).strip()
+        param = match.group(2).strip().strip("'\"") 
+        return action, param
     
-    output_parser = StrOutputParser()
-
-    # 3. Create the LangChain chain
-    project_name = os.path.basename(file_path).split('.')[0].replace('_', ' ').title() # We use the file path as the default project name.
-    
-    project_info = RunnablePassthrough.assign(
-        project_name=lambda x: project_name # Dynamically assign a name such as 'main' or 'prompts'
-    )
-
-    chain = (
-        {"file_path": RunnablePassthrough()}
-        # 1. Read the code content
-        | RunnablePassthrough.assign(code_info=lambda x: get_code_content(x["file_path"]))
-        # 2. Create the 'project_name' and 'code_content' variables and prepare them for the PromptTemplate.
-        | {
-            "project_name": lambda x: project_name, # Yeni eklenen kısım
-            "code_content": lambda x: x["code_info"]["code_content"],
-        }
-        | README_PROMPT
-        | llm
-        | output_parser
-    )
-
-    print(f"1. Reading and processing '{file_path}'...")
-    
-    # 4. Run the chain to generate the README
-    try:
-        print("2. Generating README.md via LLM (using gpt-4o-mini)...") # I added a logo with the model name specified.
-        readme_content = chain.invoke(file_path)
-
-        # 5. Save the result to a file
-        generated_filename = "README_generated.md"
-        print(f"3. Saving output to '{generated_filename}'...")
-        with open(generated_filename, "w", encoding="utf-8") as f:
-            f.write(readme_content)
+    # 2. Look for the function call pattern: Action: tool_name(param)
+    match_func = re.search(r"Action:\s*(\w+)\s*\((.*?)\)", text, re.DOTALL)
+    if match_func:
+        action = match_func.group(1).strip()
+        param = match_func.group(2).strip().strip("'\"")
+        return action, param
         
-        print("\n--- Process Complete ---")
-        print(f"Generated README content saved to {generated_filename}")
+    return None
 
-    except Exception as e:
-        print("\n--- AN ERROR OCCURRED ---")
-        print(f"An error occurred during the generation process: {e}")
-        print("Please check your API keys, network connection, and file paths.")
+# RAG Style Guide Content
+DEFAULT_GUIDE_CONTENT = """
+# Klaro Project Documentation Style Guide: 
+
+All README.md documents produced using this guide must adhere to the following standards:
+
+1.  **Heading Structure:** Headings must start with # and ##.
+2.  **Sections:** Every README must include the following sections: `# Project Name`, `## Setup`, `## Usage`, `## Components`.
+3.  **Tone and Language:** The tone must be technical, professional, and clear. Code examples must always be formatted with triple backticks (```python).
+"""
+
+def run_klaro_agent(project_path: str = "."):
+    """
+    Runs the Klaro Pure Python ReAct Agent.
+    """
+    print(f"--- Launching Klaro Autonomous Documentation Agent (Pure Python ReAct - {LLM_MODEL}) ---")
+    
+    # 🌟 STAGE 3 INTEGRATION: Knowledge Base Setup (RAG)
+    print("📢 Initializing RAG Knowledge Base...")
+    
+    documents_to_index = [
+        Document(page_content=DEFAULT_GUIDE_CONTENT, metadata={"source": "Klaro_Style_Guide"}),
+    ]
+    
+    setup_result = init_knowledge_base(documents_to_index)
+    print(f"   -> Setup Result: {setup_result}")
+
+    max_steps = 15 
+    scratchpad = "" 
+    
+    task_input = (
+        f"Please analyze the codebase in '{project_path}' and create a README.md document. "
+        "Steps: 1. Explore with 'list_files'. 2. Read critical files with 'read_file' and analyze code with 'analyze_code'. "
+        "3. Gather external info with 'web_search'. 4. Use the 'retrieve_knowledge' tool to fetch the 'README style guidelines' before writing the final answer."
+    )
+    
+    current_prompt = ChatPromptTemplate.from_template(REACT_PROMPT_TEMPLATE)
+    
+    for step in range(max_steps):
+        print(f"\n--- STEP {step + 1} / {max_steps} ---")
+        
+        # 1. Prepare Prompt
+        formatted_prompt = current_prompt.format(
+            system_prompt=SYSTEM_PROMPT,
+            tool_descriptions=TOOL_DESCRIPTIONS,
+            scratchpad=scratchpad,
+            input=task_input
+        )
+        
+        # 2. Run LLM (Thought -> Action)
+        messages = [
+            HumanMessage(content=formatted_prompt)
+        ]
+        
+        try:
+            llm_output = llm.invoke(messages).content
+        except Exception as e:
+            print(f"LLM Call Failed: {e}")
+            break
+
+        print(f"LLM Output:\n{llm_output}")
+        scratchpad += f"\n{llm_output}" 
+        
+        # 3. Final Answer Check
+        if "Final Answer:" in llm_output:
+            print("====================================")
+            print("✅ TASK SUCCESS: Final Answer received.")
+            final_answer = llm_output.split("Final Answer:")[1].strip()
+            return final_answer
+        
+        # 4. Parse Action (Action -> Observation)
+        action_pair = parse_action(llm_output)
+        
+        if not action_pair:
+            observation = "Observation: Error: No valid 'Action: tool_name[param]' format found. Please strictly adhere to the ReAct format."
+        else:
+            action, param = action_pair
+            
+            print(f"-> Executing: {action}['{param}']")
+            
+            # 5. Execute Tool and Observe
+            if action in TOOLS:
+                try:
+                    tool_func = TOOLS[action]
+                    observation_result = tool_func(param)
+                    observation = f"Observation: {observation_result}"
+                except Exception as e:
+                    observation = f"Observation: Tool Execution Error: {e}"
+            else:
+                observation = f"Observation: Error: Unknown tool name '{action}'. Please use one from the TOOLS list."
+
+        print(f"Observation Added:\n{observation}")
+        scratchpad += f"\n{observation}"
+
+    # Reached maximum steps
+    print("\n====================================")
+    return "Error: Maximum steps reached (15 steps). Agent failed to complete the task."
 
 
 if __name__ == "__main__":
-    # Get the file path from the user
-    target_file = input("Enter the path of the Python file to document: ")
-    
-    # If the file does not exist, print an error message
-    if not os.path.exists(target_file):
-        print(f"Error: File not found: {target_file}")
-    else:
-        generate_readme_for_file(target_file)
-
+    final_result = run_klaro_agent(project_path=".")
+    print("\n" + "="*50)
+    print("KLARO RESULT:")
+    print("="*50)
+    print(final_result)
