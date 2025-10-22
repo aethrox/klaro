@@ -1,84 +1,84 @@
-# **Klaro: Araçlar, Teknolojiler ve Maliyet Analizi**
+# **Klaro: Tools, Technologies, and Cost Analysis**
 
-## **1\. Giriş**
+## **1. Introduction**
 
-Bu belge, Klaro projesinin geliştirilmesi, test edilmesi ve potansiyel olarak yayınlanması için gereken teknik araçları, kütüphaneleri, servisleri ve bunlarla ilişkili maliyetleri detaylandırmaktadır. Analiz, MVP (Minimum Viable Product) aşamasından tam teşekküllü bir SaaS (Software as a Service) ürününe kadar olan süreci kapsamaktadır.
+This document details the technical tools, libraries, services required for developing, testing, and potentially publishing the Klaro project, and their associated costs. The analysis covers the process from MVP (Minimum Viable Product) stage to a full-fledged SaaS (Software as a Service) product.
 
-## **2\. Gerekli Araçlar ve Teknolojiler (Teknoloji Yığını)**
+## **2. Required Tools and Technologies (Technology Stack)**
 
-### **2.1. Ana Geliştirme Ortamı**
+### **2.1. Main Development Environment**
 
-* **Programlama Dili:** Python (3.9+)  
-* **Çerçeve (Framework):** LangChain, LangGraph  
-* **IDE (Geliştirme Ortamı):** Visual Studio Code (Önerilen)  
-* **Paket Yönetimi:** Pip ve requirements.txt  
-* **Versiyon Kontrol:** Git ve GitHub
+* **Programming Language:** Python (3.9+)
+* **Framework:** LangChain, LangGraph
+* **IDE (Development Environment):** Visual Studio Code (Recommended)
+* **Package Management:** Pip and requirements.txt
+* **Version Control:** Git and GitHub
 
-### **2.2. Yapay Zeka ve LLM Servisleri**
+### **2.2. Artificial Intelligence and LLM Services**
 
-* **Büyük Dil Modeli (LLM):** Ajanın beyni olarak hizmet verecek olan API tabanlı modeller.  
-  * **Yüksek Performanslı Modeller:**  
-    * **Ana Öneri: Anthropic Claude 3.5 Sonnet** (Hız, maliyet ve akıl yürütme dengesi için mevcut en iyi seçenek).  
-    * **Alternatif: OpenAI GPT-4o** (Yüksek performanslı bir diğer güçlü seçenek).  
-  * **Maliyet-Etkin Modeller (Akıllı Yönlendirme için):**  
-    * **Ana Öneri: OpenAI GPT-4o mini** (Son derece düşük maliyeti ve şaşırtıcı derecede iyi performansıyla basit görevler için mükemmel).  
-    * **Alternatif: Anthropic Claude 3 Haiku** (Yine çok hızlı ve ucuz bir diğer harika seçenek).  
-* **Vektör Veritabanı (RAG için \- Aşama 3):**  
-  * **Yerel/Ücretsiz:** ChromaDB  
-  * **Bulut Tabanlı/Ölçeklenebilir:** Pinecone, Weaviate  
-* **Gözlemlenebilirlik ve Hata Ayıklama (Observability & Debugging):**  
-  * **LangSmith:** Ajanın düşünce süreçlerini, araç kullanımlarını ve API çağrılarını görselleştirmek için şiddetle tavsiye edilir.
+* **Large Language Model (LLM):** API-based models that will serve as the agent's brain.
+  * **High-Performance Models:**
+    * **Main Recommendation: Anthropic Claude 3.5 Sonnet** (Currently the best choice for speed, cost, and reasoning balance).
+    * **Alternative: OpenAI GPT-4o** (Another powerful high-performance option).
+  * **Cost-Effective Models (For Smart Routing):**
+    * **Main Recommendation: OpenAI GPT-4o mini** (Excellent for simple tasks with extremely low cost and surprisingly good performance).
+    * **Alternative: Anthropic Claude 3 Haiku** (Another great option that's very fast and inexpensive).
+* **Vector Database (For RAG - Stage 3):**
+  * **Local/Free:** ChromaDB
+  * **Cloud-Based/Scalable:** Pinecone, Weaviate
+* **Observability and Debugging:**
+  * **LangSmith:** Highly recommended for visualizing the agent's thought processes, tool usage, and API calls.
 
-### **2.3. Özel Araçlar İçin Bağımlılıklar**
+### **2.3. Dependencies for Custom Tools**
 
-* **Git Entegrasyonu:** GitPython  
-* **Kod Analizi (Python):** ast
+* **Git Integration:** GitPython
+* **Code Analysis (Python):** ast
 
-## **3\. Maliyet Analizi**
+## **3. Cost Analysis**
 
-### **3.1. Geliştirme Maliyetleri**
+### **3.1. Development Costs**
 
-Projenin ilk geliştirme aşamaları için doğrudan bir finansal maliyet **neredeyse yoktur**.
+There is **almost no direct financial cost** for the initial development stages of the project.
 
-### **3.2. Operasyonel Maliyetler (En Önemli Kısım)**
+### **3.2. Operational Costs (Most Important Part)**
 
-#### **Ana Maliyet Kalemi: LLM API Kullanımı**
+#### **Main Cost Item: LLM API Usage**
 
-LLM'ler, token adı verilen metin birimleri üzerinden fiyatlandırılır.
+LLMs are priced based on text units called tokens.
 
-Güncel Fiyat Tahminleri (Ekim 2025 itibarıyla, DEĞİŞKENLİK GÖSTEREBİLİR):  
-UYARI: Bu fiyatlar API sağlayıcıları tarafından herhangi bir zamanda değiştirilebilir. Geliştirmeye başlamadan önce mutlaka resmi fiyatlandırma sayfalarını KONTROL EDİN.
+Current Price Estimates (as of October 2025, SUBJECT TO CHANGE):
+WARNING: These prices can be changed by API providers at any time. Be sure to CHECK official pricing pages before starting development.
 
-* **Yüksek Performanslı Modeller:**  
-  * **Claude 3.5 Sonnet:** Input: \~$3.00 / 1M token | Output: \~$15.00 / 1M token  
-  * **GPT-4o:** Input: \~$5.00 / 1M token | Output: \~$15.00 / 1M token  
-* **Maliyet-Etkin Modeller:**  
-  * **GPT-4o mini:** Input: **\~$0.15 / 1M token** | Output: **\~$0.60 / 1M token**  
-  * **Claude 3 Haiku:** Input: \~$0.25 / 1M token | Output: \~$1.25 / 1M **token**
+* **High-Performance Models:**
+  * **Claude 3.5 Sonnet:** Input: ~$3.00 / 1M tokens | Output: ~$15.00 / 1M tokens
+  * **GPT-4o:** Input: ~$5.00 / 1M tokens | Output: ~$15.00 / 1M tokens
+* **Cost-Effective Models:**
+  * **GPT-4o mini:** Input: **~$0.15 / 1M tokens** | Output: **~$0.60 / 1M tokens**
+  * **Claude 3 Haiku:** Input: ~$0.25 / 1M tokens | Output: ~$1.25 / 1M tokens
 
-Bir "README Oluşturma" Görevinin Tahmini Maliyeti:  
-Akıllı model yönlendirme stratejisi ile bu maliyet önemli ölçüde düşürülebilir. Karmaşık adımlarda Sonnet, basit adımlarda GPT-4o mini kullanılarak, toplamda 100.000 ila 200.000 token arasında bir tüketimle:
+Estimated Cost of a "README Generation" Task:
+With a smart model routing strategy, this cost can be significantly reduced. Using Sonnet for complex steps and GPT-4o mini for simple steps, with a total consumption between 100,000 and 200,000 tokens:
 
-* **Optimize Edilmiş Tahmini Tek Kullanım Maliyeti:** **\~$0.10 \- $0.40**
+* **Optimized Estimated Single-Use Cost:** **~$0.10 - $0.40**
 
-#### **Maliyet Optimizasyon Stratejileri**
+#### **Cost Optimization Strategies**
 
-* **Akıllı Model Yönlendirme (Routing):** Bu, en önemli stratejidir. Ajanın her adımı için doğru modeli kullanın.  
-  * **Basit Görevler:** Dosya listeleme, "Bu dosya önemli mi?" gibi basit karar anları için **GPT-4o mini** veya **Claude 3 Haiku** kullanın.  
-  * **Karmaşık Görevler:** Kodun derinlemesine analizi, nihai dokümanın yazımı gibi karmaşık ve tutarlılık gerektiren adımlar için **Claude 3.5 Sonnet**'e geçiş yapın.  
-* **Önbellekleme (Caching):** Tekrarlı işlemlerin sonuçlarını önbelleğe alarak gereksiz API çağrılarını engelleyin.  
-* **Prompt Mühendisliği:** Ajanın daha az adımda doğru sonuca ulaşması için sistem prompt'unu optimize edin.
+* **Smart Model Routing:** This is the most important strategy. Use the right model for each step of the agent.
+  * **Simple Tasks:** Use **GPT-4o mini** or **Claude 3 Haiku** for simple decision moments like file listing, "Is this file important?".
+  * **Complex Tasks:** Switch to **Claude 3.5 Sonnet** for complex steps requiring consistency, such as deep code analysis and final document writing.
+* **Caching:** Prevent unnecessary API calls by caching the results of repetitive operations.
+* **Prompt Engineering:** Optimize the system prompt so the agent reaches the correct result in fewer steps.
 
-#### **Diğer Potansiyel Maliyetler (Ticarileşme Aşamasında):**
+#### **Other Potential Costs (At Commercialization Stage):**
 
-* **Hosting/Sunucu Maliyetleri:** Vercel, AWS, Google Cloud vb.  
-* **Vektör Veritabanı:** Pinecone, Weaviate vb.  
-* **Alan Adı (Domain):** Yıllık \~$10-15.
+* **Hosting/Server Costs:** Vercel, AWS, Google Cloud, etc.
+* **Vector Database:** Pinecone, Weaviate, etc.
+* **Domain:** Annual ~$10-15.
 
-## **4\. MVP İçin Bütçe Dostu Yol Haritası**
+## **4. Budget-Friendly Roadmap for MVP**
 
-1. **LLM Seçimi:** Anthropic veya OpenAI'den **ücretsiz başlangıç kredilerini** alın.  
-2. **Uygulama Türü:** Projeyi önce bir **Komut Satırı Aracı (CLI)** olarak geliştirin.  
-3. **Vektör Veritabanı:** **ChromaDB**'yi yerel makinenizde çalıştırın.  
-4. **Kod Barındırma:** **Ücretsiz bir GitHub** deposu kullanın.  
-5. **Gözlemlenebilirlik:** **LangSmith'in ücretsiz katmanını** kullanarak ajanınızın adımlarını takip edin.
+1. **LLM Selection:** Get **free starter credits** from Anthropic or OpenAI.
+2. **Application Type:** First develop the project as a **Command Line Interface (CLI)** tool.
+3. **Vector Database:** Run **ChromaDB** on your local machine.
+4. **Code Hosting:** Use a **free GitHub** repository.
+5. **Observability:** Track your agent's steps using **LangSmith's free tier**.

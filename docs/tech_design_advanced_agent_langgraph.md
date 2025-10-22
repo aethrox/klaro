@@ -1,79 +1,83 @@
-# **Klaro: Teknik Tasarım \- Gelişmiş Ajan Mimarisi (LangGraph)**
+# **Klaro: Technical Design - Advanced Agent Architecture (LangGraph)**
 
-## **1\. Giriş**
+## **1. Introduction**
 
-Bu belge, Klaro projesinin 4\. Geliştirme Aşamasını detaylandırmaktadır: Mevcut **ReAct** ajan mimarisinden, daha gelişmiş, durum bilgili (stateful) ve esnek bir yapı olan **LangGraph**'e geçiş. Bu yükseltme, ajanın daha karmaşık görevleri yönetme, hatalardan ders çıkarma ve daha sağlam bir karar verme mekanizması oluşturma yeteneğini önemli ölçüde artıracaktır.
+This document details Stage 4 of the Klaro project's development: The transition from the existing **ReAct** agent architecture to **LangGraph**, a more advanced, stateful, and flexible structure. This upgrade will significantly enhance the agent's ability to manage more complex tasks, learn from errors, and create a more robust decision-making mechanism.
 
-## **2\. Neden LangGraph? ReAct Mimarîsinin Sınırları**
+## **2. Why LangGraph? Limitations of the ReAct Architecture**
 
-ReAct, MVP aşaması için mükemmel bir başlangıç noktası olsa da, doğası gereği durumsuzdur (stateless) ve basit bir Düşünce \-\> Eylem \-\> Gözlem döngüsüne dayanır. Bu durum, aşağıdaki gibi zorluklara yol açabilir:
+Although ReAct is an excellent starting point for the MVP stage, it is inherently stateless and relies on a simple Thought -> Action -> Observation loop. This situation can lead to challenges such as:
 
-* **Hata Yönetimi:** Bir araç (tool) başarısız olduğunda veya beklenmedik bir çıktı verdiğinde, ReAct ajanı genellikle döngüyü sonlandırır veya hatayı yönetmekte zorlanır.  
-* **Karmaşık Planlama:** Ajanın birden çok adımdan oluşan karmaşık bir planı takip etmesi veya bir adım başarısız olduğunda alternatif bir yola sapması ReAct ile zordur.  
-* **Döngüsel Mantık:** "Yeterli bilgi toplayana kadar dosyaları oku" gibi döngüsel mantıklar oluşturmak doğal değildir.
+* **Error Handling:** When a tool fails or produces unexpected output, the ReAct agent typically terminates the loop or struggles to manage the error.
+* **Complex Planning:** It is difficult for the agent to follow a complex multi-step plan or deviate to an alternative path when a step fails with ReAct.
+* **Cyclical Logic:** Creating cyclical logic like "read files until enough information is gathered" is not natural.
 
-LangGraph, bu sorunları çözmek için bir grafik (graph) veri yapısı sunar. Bu yapı, ajanın mantık akışını düğümler (nodes) ve kenarlar (edges) ile tanımlayarak tam kontrol sağlar.
+LangGraph offers a graph data structure to solve these problems. This structure provides complete control by defining the agent's logic flow with nodes and edges.
 
-## **3\. LangGraph Mimarisine Genel Bakış**
+## **3. Overview of LangGraph Architecture**
 
-LangGraph mimarisi üç ana bileşenden oluşur:
+The LangGraph architecture consists of three main components:
 
-1. **Durum (State):** Grafiğin her adımında taşınan ve güncellenen merkezi bir veri nesnesidir. Ajanın "hafızası" olarak düşünülebilir.  
-2. **Düğümler (Nodes):** Belirli bir işi yapan fonksiyonlar veya zincirlerdir (örn: bir aracı çalıştırmak, LLM'e bir soru sormak). Her düğüm, mevcut durumu (state) alır ve güncellenmiş bir durum döndürür.  
-3. **Kenarlar (Edges):** Bir düğümden sonra hangi düğümün çalıştırılacağını belirleyen mantıksal bağlantılardır. Bu kenarlar koşullu olabilir, bu da ajanın dinamik kararlar vermesini sağlar.
+1. **State:** A central data object carried and updated at each step of the graph. Can be thought of as the agent's "memory".
+2. **Nodes:** Functions or chains that perform specific tasks (e.g., running a tool, asking a question to the LLM). Each node takes the current state and returns an updated state.
+3. **Edges:** Logical connections that determine which node will run after a node. These edges can be conditional, enabling the agent to make dynamic decisions.
 
-### **3.1. Klaro Ajanı için Durum (AgentState) Tasarımı**
+### **3.1. State (AgentState) Design for Klaro Agent**
 
-Klaro ajanının hafızası, aşağıdaki bilgileri içerecek şekilde tasarlanacaktır:
+The Klaro agent's memory will be designed to contain the following information:
 
+```python
 from typing import TypedDict, List, Dict
 
-class AgentState(TypedDict):  
-    task: str                 \# Kullanıcının ilk görevi (örn: "README oluştur")  
-    file\_tree: str            \# Projenin dosya yapısı  
-    files\_read: List\[str\]     \# Okunan dosyaların listesi  
-    analysis\_results: Dict    \# CodeAnalyzerTool'dan gelen analiz sonuçları  
-    document\_draft: str       \# Geliştirilmekte olan doküman taslağı  
-    last\_action\_result: str   \# Son çalıştırılan aracın sonucu  
-    error\_log: List\[str\]      \# Karşılaşılan hataların kaydı
+class AgentState(TypedDict):
+    task: str                 # User's initial task (e.g., "create README")
+    file_tree: str            # Project's file structure
+    files_read: List[str]     # List of read files
+    analysis_results: Dict    # Analysis results from CodeAnalyzerTool
+    document_draft: str       # Document draft being developed
+    last_action_result: str   # Result of the last executed tool
+    error_log: List[str]      # Log of encountered errors
+```
 
-### **3.2. Ana Düğümler (Nodes)**
+### **3.2. Main Nodes**
 
-1. **plan\_step (Planlama Düğümü):** Ajanın beyni. Mevcut durumu (AgentState) alır ve bir sonraki adımda hangi aracın hangi parametrelerle çalıştırılacağına karar verir.  
-2. **execute\_tool (Araç Yürütme Düğümü):** Planlama düğümünden gelen kararı uygular. Codebase Explorer, File Reader veya Code Analyzer gibi araçlardan birini çalıştırır ve sonucunu last\_action\_result olarak duruma ekler.  
-3. **update\_draft (Taslak Güncelleme Düğümü):** execute\_tool'dan gelen yeni bilgileri (dosya içeriği, kod analizi vb.) alır ve document\_draft'ı bu bilgilerle zenginleştirir.  
-4. **check\_completeness (Tamamlanma Kontrol Düğümü):** Ajanın görevi tamamlamak için yeterli bilgiye sahip olup olmadığını kontrol eder. Bu düğüm, bir sonraki adımın planlama mı yoksa son çıktıyı oluşturma mı olacağına karar veren koşullu kenarı (conditional edge) tetikler.
+1. **plan_step (Planning Node):** The agent's brain. Takes the current state (AgentState) and decides which tool to run with which parameters in the next step.
+2. **execute_tool (Tool Execution Node):** Implements the decision from the planning node. Runs one of the tools like Codebase Explorer, File Reader, or Code Analyzer and adds the result to the state as last_action_result.
+3. **update_draft (Draft Update Node):** Takes new information from execute_tool (file content, code analysis, etc.) and enriches the document_draft with this information.
+4. **check_completeness (Completeness Check Node):** Checks whether the agent has enough information to complete the task. This node triggers the conditional edge that decides whether the next step will be planning or generating the final output.
 
-## **4\. Örnek İş Akışı Grafiği**
+## **4. Example Workflow Graph**
 
-Aşağıda, bir README oluşturma görevi için LangGraph akışının basitleştirilmiş bir diyagramı yer almaktadır:
+Below is a simplified diagram of the LangGraph flow for a README generation task:
 
-        \[ Başla \]  
-            |  
-            v  
-    \[ plan\_step \] \--------\> \[ execute\_tool \]  
-        ^   |                      |  
-        |   |                      v  
-        |   '---------------- \[ update\_draft \]  
-        |  
-        v (Görevi tamamla?)  
-\[ check\_completeness \] \--(Hayır)--\> \[ plan\_step \] (Döngü)  
-        |  
-        '--(Evet)--\> \[ Final Answer \]
+```
+        [ Start ]
+            |
+            v
+    [ plan_step ] --------> [ execute_tool ]
+        ^   |                      |
+        |   |                      v
+        |   '---------------- [ update_draft ]
+        |
+        v (Complete task?)
+[ check_completeness ] --(No)--> [ plan_step ] (Loop)
+        |
+        '--(Yes)--> [ Final Answer ]
+```
 
-### **Koşullu Mantık:**
+### **Conditional Logic:**
 
-check\_completeness düğümünden sonraki kenar, ajanın en güçlü özelliğidir.
+The edge after the check_completeness node is the agent's most powerful feature.
 
-* **Eğer** LLM, "daha fazla bilgiye ihtiyacım var" derse, kenar akışı tekrar plan\_step düğümüne yönlendirir.  
-* **Eğer** LLM, "tüm bilgilere sahibim" derse, kenar akışı Final Answer düğümüne yönlendirerek döngüyü sonlandırır.  
-* **Eğer** execute\_tool bir hata döndürürse, durumdaki error\_log güncellenir ve akış yine plan\_step'e döner. Bu sayede ajan, "Bu araç çalışmadı, başka bir şey denemeliyim" diyebilir.
+* **If** the LLM says "I need more information", the edge redirects the flow back to the plan_step node.
+* **If** the LLM says "I have all the information", the edge directs the flow to the Final Answer node, terminating the loop.
+* **If** execute_tool returns an error, the error_log in the state is updated and the flow again returns to plan_step. This way the agent can say, "This tool didn't work, I should try something else".
 
-## **5\. Sonuç ve Avantajlar**
+## **5. Conclusion and Advantages**
 
-LangGraph'e geçiş, Klaro ajanını basit bir araç otomasyonundan, aşağıdaki yeteneklere sahip, sağlam ve akıllı bir sisteme dönüştürecektir:
+The transition to LangGraph will transform the Klaro agent from simple tool automation into a robust and intelligent system with the following capabilities:
 
-* **Dayanıklılık (Robustness):** Araç hatalarını yönetebilir ve alternatif yollar deneyebilir.  
-* **Gelişmiş Mantık:** Karmaşık, çok adımlı görevleri planlayabilir ve yürütebilir.  
-* **Gözlemlenebilirlik:** Graf yapısı sayesinde ajanın karar verme süreci çok daha şeffaf ve kolayca takip edilebilir hale gelir.  
-* **Esneklik:** Yeni araçlar veya mantık akışları eklemek, grafiğe yeni düğümler ve kenarlar eklemek kadar kolay olacaktır.
+* **Resilience (Robustness):** Can manage tool errors and try alternative paths.
+* **Advanced Logic:** Can plan and execute complex, multi-step tasks.
+* **Observability:** Thanks to the graph structure, the agent's decision-making process becomes much more transparent and easily trackable.
+* **Flexibility:** Adding new tools or logic flows will be as easy as adding new nodes and edges to the graph.

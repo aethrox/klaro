@@ -1,111 +1,111 @@
-# **Otonom Belgelendirme Ajanı: Proje Planı ve Teknik Tasarım**
+# **Autonomous Documentation Agent: Project Plan and Technical Design**
 
-## **Proje Kimliği: Klaro**
+## **Project Identity: Klaro**
 
-### **İsim: Klaro**
+### **Name: Klaro**
 
-Klaro ismi, Latincede "net", "parlak" ve "aydınlık" anlamına gelen **"clarus"** kelimesinden türetilmiştir. Bu isim, projenin temel misyonunu mükemmel bir şekilde yansıtır: karmaşık ve anlaşılması zor kod tabanlarını aydınlatarak, herkes için net ve anlaşılır belgelere dönüştürmek. Klaro, koda netlik getirir.
+The name Klaro is derived from the Latin word **"clarus"** meaning "clear", "bright" and "luminous". This name perfectly reflects the project's core mission: to illuminate complex and hard-to-understand codebases and transform them into clear and understandable documentation for everyone. Klaro brings clarity to code.
 
 ### **Slogan**
 
 **Klaro: From Code to Clarity. Instantly.**
 
-## **1\. Projeye Genel Bakış**
+## **1. Project Overview**
 
 ### **1.1. Problem**
 
-Yazılım geliştirme süreçlerinde dokümantasyon oluşturmak ve güncel tutmak, kritik öneme sahip olmasına rağmen genellikle zaman alıcı, sıkıcı ve ihmal edilen bir adımdır. Eksik veya güncel olmayan dokümantasyon, yeni ekip üyelerinin projeye adaptasyonunu zorlaştırır, kodun bakımını yavaşlatır ve projenin genel kalitesini düşürür.
+Creating and maintaining documentation in software development processes is a time-consuming, tedious, and often neglected step, despite being critically important. Missing or outdated documentation makes it difficult for new team members to adapt to the project, slows down code maintenance, and reduces the overall quality of the project.
 
-### **1.2. Çözüm**
+### **1.2. Solution**
 
-Bu proje, Büyük Dil Modelleri (LLM'ler) ve LangChain ajan mimarisini kullanarak, bir kod tabanını otonom olarak analiz eden ve yüksek kalitede teknik dokümantasyon (README.md, API referansları, geliştirici kılavuzları vb.) üreten bir "Belgelendirme Ajanı" geliştirmeyi amaçlamaktadır. Ajan, minimum geliştirici müdahalesi ile çalışarak dokümantasyon sürecini otomatikleştirecek ve verimliliği artıracaktır.
+This project aims to develop a "Documentation Agent" that autonomously analyzes a codebase and produces high-quality technical documentation (README.md, API references, developer guides, etc.) using Large Language Models (LLMs) and LangChain agent architecture. The agent will automate the documentation process with minimal developer intervention and increase efficiency.
 
-### **1.3. Hedef Kitle**
+### **1.3. Target Audience**
 
-* Bireysel yazılım geliştiricileri  
-* Yazılım geliştirme ekipleri ve şirketler  
-* Açık kaynak proje yöneticileri
+* Individual software developers
+* Software development teams and companies
+* Open source project managers
 
-### **1.4. Değer Teklifi**
+### **1.4. Value Proposition**
 
-* **Zaman Tasarrufu:** Manuel dokümantasyon yazma süresini %90'a varan oranlarda azaltır.  
-* **Kalite ve Tutarlılık:** Proje genelinde profesyonel ve standartlara uygun dokümanlar üretir.  
-* **Kolay Bakım:** Kod tabanındaki değişikliklere paralel olarak dokümantasyonun güncellenmesini kolaylaştırır.  
-* **Geliştirici Verimliliği:** Geliştiricilerin ana odakları olan kod yazmaya daha fazla zaman ayırmasını sağlar.
+* **Time Savings:** Reduces manual documentation writing time by up to 90%.
+* **Quality and Consistency:** Produces professional and standards-compliant documents across the project.
+* **Easy Maintenance:** Facilitates updating documentation in parallel with changes in the codebase.
+* **Developer Productivity:** Allows developers to spend more time on their main focus: writing code.
 
-## **2\. Teknik Mimari ve Bileşenler**
+## **2. Technical Architecture and Components**
 
-Ajan, LangChain'in modüler yapısı üzerine inşa edilecek ve aşağıdaki temel bileşenlerden oluşacaktır.
+The agent will be built on LangChain's modular structure and consist of the following core components.
 
-| Bileşen | Teknoloji/LangChain Modülü | Sorumluluk ve İşlev |
+| Component | Technology/LangChain Module | Responsibility and Function |
 | :---- | :---- | :---- |
-| **Ajan (Agent)** | langchain.agents (ReAct, etc.) | Projenin beyni. Görevi alt adımlara ayırır, hangi aracı ne zaman kullanacağına karar verir ve genel iş akışını yönetir. |
-| **Büyük Dil Modeli (LLM)** | Claude 3.5 Sonnet / GPT-4o | Karmaşık kod yapılarını anlama, akıl yürütme (reasoning), özetleme ve metin üretme gibi temel zeka görevlerini yerine getirir. |
-| **Araçlar (Tools)** | langchain.tools (Custom Tools) | Ajanın dış dünya ile etkileşim kurmasını sağlayan yetenek setidir. |
-| \* \- CodebaseReaderTool\* | Custom Tool (Python os, git) | Belirtilen bir Git deposunu klonlar veya yerel bir dizindeki tüm ilgili kod dosyalarını (.py, .js, vb.) okur ve içeriğini ajana sunar. |
-| \* \- CodeAnalyzerTool\* | Custom Tool (AST, LLM Chain) | Bir kod parçasını (fonksiyon, sınıf) analiz eder; amacını, parametrelerini, geri dönüş değerini ve bağımlılıklarını yapısal olarak çıkarır. |
-| \* \- WebSearchTool\* | DuckDuckGo, SerpAPI, etc. | Projenin kullandığı harici kütüphaneler veya framework'ler hakkında bilgi toplamak için web araması yapar. |
-| **RAG Mekanizması** | langchain.vectorstores, RetrievalQA | Şirketin mevcut stil kılavuzunu veya benzer projelerdeki dokümantasyon örneklerini referans alarak, üretilen metnin tutarlı ve istenen tonda olmasını sağlar. |
-| **Vektör Veritabanı** | ChromaDB / FAISS | RAG için referans dokümanların (stil kılavuzları, örnekler) vektör gömülmelerini (embeddings) depolar ve hızlı anlamsal arama yapılmasını sağlar. |
-| **Çıktı Ayrıştırıcı (Output Parser)** | langchain.output\_parsers | LLM tarafından üretilen ham metni, Markdown gibi belirli ve yapısal bir formata (örneğin tam bir README.md dosyası) dönüştürür. |
+| **Agent** | langchain.agents (ReAct, etc.) | The project's brain. Breaks down tasks into sub-steps, decides which tool to use when, and manages the overall workflow. |
+| **Large Language Model (LLM)** | Claude 3.5 Sonnet / GPT-4o | Performs core intelligence tasks such as understanding complex code structures, reasoning, summarization, and text generation. |
+| **Tools** | langchain.tools (Custom Tools) | The capability set that enables the agent to interact with the external world. |
+| * - CodebaseReaderTool* | Custom Tool (Python os, git) | Clones a specified Git repository or reads all relevant code files (.py, .js, etc.) in a local directory and presents their content to the agent. |
+| * - CodeAnalyzerTool* | Custom Tool (AST, LLM Chain) | Analyzes a piece of code (function, class); structurally extracts its purpose, parameters, return value, and dependencies. |
+| * - WebSearchTool* | DuckDuckGo, SerpAPI, etc. | Performs web searches to gather information about external libraries or frameworks used by the project. |
+| **RAG Mechanism** | langchain.vectorstores, RetrievalQA | Ensures that the generated text is consistent and in the desired tone by referencing the company's existing style guide or documentation examples from similar projects. |
+| **Vector Database** | ChromaDB / FAISS | Stores vector embeddings of reference documents (style guides, examples) for RAG and enables fast semantic search. |
+| **Output Parser** | langchain.output_parsers | Converts the raw text generated by the LLM into a specific and structural format like Markdown (e.g., a complete README.md file). |
 
-## **3\. Ajanın İş Akışı (Örnek: README Oluşturma)**
+## **3. Agent Workflow (Example: README Generation)**
 
-1. **Girdi (Input):** Kullanıcı, ajana bir komut verir: "https://github.com/kullanici/proje-adi adresindeki Python projesi için bir README.md dosyası oluştur."  
-2. **Planlama (Reasoning):** Ajan, ana hedefi alt görevlere ayırır:  
-   * "İlk olarak, kod tabanına erişmem gerekiyor." \-\> CodebaseReaderTool  
-   * "Projenin genel amacını anlamak için ana dosyaları (örn: main.py, app.py) bulup analiz etmeliyim." \-\> CodeAnalyzerTool  
-   * "Projenin bağımlılıklarını (requirements.txt) bulup listelemeliyim." \-\> CodebaseReaderTool  
-   * "Projenin nasıl kurulacağını ve çalıştırılacağını açıklamalıyım."  
-   * "Ana fonksiyonların veya API endpoint'lerinin ne işe yaradığını özetlemeliyim." \-\> CodeAnalyzerTool  
-   * "Tüm bu bilgileri birleştirip standart bir README formatında bir taslak oluşturmalıyım."  
-   * "Son olarak, taslağı nihai Markdown formatına dönüştürmeliyim." \-\> Output Parser  
-3. **Yürütme (Execution):**  
-   * Ajan, CodebaseReaderTool'u çağırarak Git deposunu klonlar ve tüm .py dosyalarını okur.  
-   * requirements.txt dosyasını okur ve pip install \-r requirements.txt gibi bir kurulum komutu formüle eder.  
-   * LLM'in yardımıyla projenin ana giriş noktasını belirler ve CodeAnalyzerTool ile bu dosyadaki ana fonksiyonları veya sınıfları analiz eder.  
-   * Her bir ana bileşen için kısa ve anlaşılır açıklamalar üretir.  
-   * Eğer boto3 gibi bir kütüphane tespit ederse, WebSearchTool ile bu kütüphanenin ne işe yaradığını araştırarak "AWS ile entegrasyon sağlar" gibi bir not ekleyebilir.  
-   * Topladığı tüm bilgileri (proje amacı, kurulum, kullanım, API özeti) bir araya getirir.  
-4. **Çıktı (Output):** Ajan, Output Parser kullanarak aşağıdaki gibi formatlanmış, eksiksiz bir README.md dosyası üretir ve kullanıcıya sunar.
+1. **Input:** The user gives the agent a command: "Create a README.md file for the Python project at https://github.com/user/project-name."
+2. **Planning (Reasoning):** The agent breaks down the main goal into sub-tasks:
+   * "First, I need to access the codebase." -> CodebaseReaderTool
+   * "To understand the project's general purpose, I should find and analyze main files (e.g., main.py, app.py)." -> CodeAnalyzerTool
+   * "I should find and list the project's dependencies (requirements.txt)." -> CodebaseReaderTool
+   * "I should explain how the project is installed and run."
+   * "I should summarize what the main functions or API endpoints do." -> CodeAnalyzerTool
+   * "I should combine all this information and create a draft in standard README format."
+   * "Finally, I should convert the draft into final Markdown format." -> Output Parser
+3. **Execution:**
+   * The agent calls CodebaseReaderTool to clone the Git repository and read all .py files.
+   * It reads the requirements.txt file and formulates an installation command like pip install -r requirements.txt.
+   * With the help of the LLM, it identifies the project's main entry point and analyzes the main functions or classes in that file with CodeAnalyzerTool.
+   * It generates short and understandable explanations for each main component.
+   * If it detects a library like boto3, it can use WebSearchTool to research what this library does and add a note like "provides integration with AWS".
+   * It brings together all the collected information (project purpose, installation, usage, API summary).
+4. **Output:** The agent produces and presents to the user a formatted, complete README.md file like the following using the Output Parser.
 
-## **4\. Geliştirme Yol Haritası**
+## **4. Development Roadmap**
 
-### **Aşama 1: MVP (Minimum Viable Product) \- (1-2 Hafta)**
+### **Stage 1: MVP (Minimum Viable Product) - (1-2 Weeks)**
 
-* **Hedef:** Tek bir Python betiği için temel bir README.md oluşturan ajan.  
-* **Adımlar:**  
-  1. LangChain ve LLM (Claude 3.5 Sonnet) entegrasyonunu yap.  
-  2. Sadece yerel bir dosyayı okuyan basit bir CodeReaderTool geliştir.  
-  3. Dosya içeriğini alıp LLM'e "Bu kod ne yapıyor? Özetle." diyen basit bir zincir (chain) oluştur.  
-  4. Çıktıyı Markdown olarak formatlayan bir Output Parser ekle.
+* **Goal:** An agent that creates a basic README.md for a single Python script.
+* **Steps:**
+  1. Integrate LangChain and LLM (Claude 3.5 Sonnet).
+  2. Develop a simple CodeReaderTool that only reads a local file.
+  3. Create a simple chain that takes file content and asks the LLM "What does this code do? Summarize."
+  4. Add an Output Parser that formats the output as Markdown.
 
-### **Aşama 2: Gelişmiş Analiz ve Araç Entegrasyonu \- (2-3 Hafta)**
+### **Stage 2: Advanced Analysis and Tool Integration - (2-3 Weeks)**
 
-* **Hedef:** Tüm bir projeyi analiz eden ve daha detaylı doküman üreten ajan.  
-* **Adımlar:**  
-  1. CodebaseReaderTool'u bir Git deposunu klonlayacak şekilde geliştir.  
-  2. Kodun yapısını anlamak için AST (Abstract Syntax Tree) kullanan CodeAnalyzerTool'u oluştur.  
-  3. WebSearchTool'u entegre et.  
-  4. Ajanın planlama ve akıl yürütme yeteneklerini ReAct (Reasoning and Acting) mantığı ile güçlendir.
+* **Goal:** An agent that analyzes an entire project and produces more detailed documentation.
+* **Steps:**
+  1. Develop CodebaseReaderTool to clone a Git repository.
+  2. Create CodeAnalyzerTool that uses AST (Abstract Syntax Tree) to understand code structure.
+  3. Integrate WebSearchTool.
+  4. Strengthen the agent's planning and reasoning capabilities with ReAct (Reasoning and Acting) logic.
 
-### **Aşama 3: RAG ve Kalite Artırımı \- (2 Hafta)**
+### **Stage 3: RAG and Quality Improvement - (2 Weeks)**
 
-* **Hedef:** Belirli bir stil kılavuzuna uygun, daha tutarlı dokümanlar üreten ajan.  
-* **Adımlar:**  
-  1. Örnek dokümanlar ve stil kılavuzları için bir vektör veritabanı (ChromaDB) kur.  
-  2. Doküman üretme adımını RAG mekanizması ile zenginleştir.  
-  3. Ajanın ürettiği çıktıların kalitesini artırmak için prompt mühendisliği yap.
+* **Goal:** An agent that produces more consistent documents that conform to a specific style guide.
+* **Steps:**
+  1. Set up a vector database (ChromaDB) for sample documents and style guides.
+  2. Enrich the document generation step with a RAG mechanism.
+  3. Perform prompt engineering to improve the quality of the agent's output.
 
-### **Aşama 4: Stabilizasyon ve LangGraph \- (Opsiyonel, 3+ Hafta)**
+### **Stage 4: Stabilization and LangGraph - (Optional, 3+ Weeks)**
 
-* **Hedef:** Hata yönetimi yapabilen, döngüsel ve daha kararlı bir ajan mimarisi.  
-* **Adımlar:**  
-  1. Mevcut ajan mantığını, durum bilgili (stateful) bir yapı olan LangGraph'a taşı.  
-  2. Ajanın hatalı bir adım attığında geri dönüp farklı bir araç denemesini sağlayan döngüler (cycles) ekle.
+* **Goal:** A more stable agent architecture capable of error handling and cyclical operations.
+* **Steps:**
+  1. Migrate the existing agent logic to LangGraph, a stateful structure.
+  2. Add cycles that allow the agent to go back and try a different tool when it takes a faulty step.
 
-## **5\. Ticarileştirme Fikirleri**
+## **5. Commercialization Ideas**
 
-* **GitHub App:** Projelere PR (Pull Request) ile otomatik olarak dokümantasyon ekleyen bir bot.  
-* **SaaS Platformu:** Kullanıcıların Git depolarını bağlayıp anında dokümantasyon alabildikleri bir web uygulaması.  
-* **VS Code Eklentisi:** Geliştiricinin doğrudan IDE içerisinden, üzerinde çalıştığı dosya veya fonksiyon için doküman üretmesini sağlayan bir araç.
+* **GitHub App:** A bot that automatically adds documentation to projects via Pull Request (PR).
+* **SaaS Platform:** A web application where users can connect their Git repositories and instantly get documentation.
+* **VS Code Extension:** A tool that enables developers to generate documentation for the file or function they're working on directly from within their IDE.

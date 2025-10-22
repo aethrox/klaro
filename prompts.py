@@ -1,3 +1,59 @@
+"""
+Klaro System Prompts Module
+============================
+
+This module contains the system prompts and instructions that define Klaro's behavior
+and personality as an autonomous documentation agent.
+
+The prompts are designed using the ReAct (Reasoning and Acting) framework, which requires
+the agent to explicitly state its thought process, chosen actions, and observations at
+each step of the documentation generation process.
+
+Key Components:
+---------------
+1. **Agent Identity**: Defines Klaro as a technical documentation specialist
+2. **Operating Principle**: ReAct loop with strict Action format requirements
+3. **Tool Descriptions**: Detailed explanations of each available tool
+4. **Goals and Workflow**: Step-by-step process for analyzing codebases
+5. **Output Format**: Requirements for final answer presentation
+
+Design Decisions:
+-----------------
+- **ReAct Format**: Explicit Thought -> Action -> Observation structure improves
+  agent reasoning and makes debugging easier by exposing the decision-making process.
+
+- **Strict Action Format**: Requiring "Action: tool_name[parameter]" format ensures
+  consistent tool invocation that LangGraph's ToolNode can reliably parse.
+
+- **Mandatory RAG Retrieval**: Forcing the agent to call retrieve_knowledge before
+  finalizing output ensures all documentation follows the project's style guide.
+
+- **Professional Tone**: Emphasis on technical accuracy and clarity over creativity
+  produces documentation suitable for professional software projects.
+
+Usage:
+------
+    from prompts import SYSTEM_PROMPT
+    from langchain_core.messages import HumanMessage
+
+    # Combine system prompt with user task
+    initial_message = f"{SYSTEM_PROMPT}\\n\\nUSER'S TASK: {user_task}"
+    messages = [HumanMessage(content=initial_message)]
+
+Modification Guidelines:
+------------------------
+When updating this prompt:
+- Test thoroughly with various project types (Python, JS, multi-language)
+- Ensure tool descriptions match actual function signatures in tools.py
+- Validate that examples in the prompt use correct syntax
+- Check that the Final Answer format requirement is clear
+
+See also:
+---------
+- docs/tech_design_agent_architecture.md: Agent architecture design rationale
+- main.py: How this prompt is integrated into the LangGraph workflow
+"""
+
 SYSTEM_PROMPT = """
 You are Klaro, an autonomous AI agent specializing in technical documentation. Your mission is to analyze a given codebase and autonomously generate a comprehensive, high-quality technical README.md file.
 

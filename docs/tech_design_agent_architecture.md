@@ -1,134 +1,142 @@
-# **Klaro: Teknik Tasarım \- Ajan Mimarisi ve Entegrasyonu**
+# **Klaro: Technical Design - Agent Architecture and Integration**
 
-## **1\. Giriş**
+## **1. Introduction**
 
-Bu belge, tech\_design\_custom\_tools dosyasında tasarlanan özel araçları (CodebaseReaderTool, CodeAnalyzerTool) kullanacak olan otonom ajanın mimarisini, entegrasyonunu ve temel çalışma prensiplerini açıklamaktadır. Bu aşama, projenin "beynini" oluşturarak, ajanın otonom bir şekilde görevleri planlamasını ve yürütmesini sağlar.
+This document explains the architecture, integration, and core operating principles of the autonomous agent that will use the custom tools (CodebaseReaderTool, CodeAnalyzerTool) designed in the tech_design_custom_tools document. This stage creates the project's "brain", enabling the agent to plan and execute tasks autonomously.
 
-## **2\. Ajan Mimarisi Seçimi: ReAct (Reasoning and Acting)**
+## **2. Agent Architecture Selection: ReAct (Reasoning and Acting)**
 
-Projenin ilk ve MVP (Minimum Viable Product) aşamaları için LangChain'in **ReAct** ajan mimarisi kullanılacaktır.
+LangChain's **ReAct** agent architecture will be used for the project's initial and MVP (Minimum Viable Product) stages.
 
-### **2.1. Neden ReAct?**
+### **2.1. Why ReAct?**
 
-* **Basitlik ve Anlaşılabilirlik:** ReAct, Düşünce \-\> Eylem \-\> Gözlem (Thought \-\> Action \-\> Observation) döngüsü ile çalışır. Bu yapı, ajanın karar verme sürecini takip etmeyi ve hata ayıklamayı (debugging) son derece kolaylaştırır.  
-* **Etkin Araç Kullanımı:** Bu mimari, LLM'in hangi aracı neden seçtiğini ve bir sonraki adımda ne yapmayı planladığını açıkça belirtmesini gerektirir. Bu, araç odaklı görevler için idealdir.  
-* **Endüstri Standardı:** LangChain'deki en yaygın ve iyi belgelendirilmiş ajan türlerinden biridir, bu da hızlı bir başlangıç yapmayı sağlar.
+* **Simplicity and Understandability:** ReAct works with a Thought -> Action -> Observation loop. This structure makes it extremely easy to track the agent's decision-making process and debug.
+* **Effective Tool Usage:** This architecture requires the LLM to explicitly state which tool it chose and why, and what it plans to do in the next step. This is ideal for tool-centric tasks.
+* **Industry Standard:** It is one of the most common and well-documented agent types in LangChain, enabling a quick start.
 
-## **3\. Ajan ve Araçların Entegrasyonu**
+## **3. Integration of Agent and Tools**
 
-Ajanın tasarlanan özel araçları kullanabilmesi için bu araçların LangChain formatında tanımlanması ve ajana "sunulması" gerekir.
+For the agent to use the designed custom tools, these tools must be defined in LangChain format and "presented" to the agent.
 
-### **3.1. Araçların Tanımlanması**
+### **3.1. Tool Definition**
 
-Her özel araç, bir Tool nesnesi olarak paketlenmelidir. Bu nesne en az iki önemli parametre içerir:
+Each custom tool must be packaged as a Tool object. This object contains at least two important parameters:
 
-* **name:** LLM'in aracı çağırmak için kullanacağı benzersiz isim (örn: codebase\_reader veya code\_analyzer).  
-* **description:** **En kritik bölüm.** LLM'in bu aracın ne işe yaradığını, hangi durumlarda kullanılması gerektiğini ve hangi parametreleri aldığını anladığı yer burasıdır. Açıklama ne kadar net olursa, ajan o kadar akıllı olur.
+* **name:** A unique name the LLM will use to call the tool (e.g., codebase_reader or code_analyzer).
+* **description:** **The most critical part.** This is where the LLM understands what the tool does, when it should be used, and what parameters it takes. The clearer the description, the smarter the agent becomes.
 
-**Örnek Araç Tanımlaması (Python Kodu Konsepti):**
+**Example Tool Definition (Python Code Concept):**
 
-from langchain.agents import Tool  
-from your\_tools import CodebaseReaderTool, CodeAnalyzerTool
+```python
+from langchain.agents import Tool
+from your_tools import CodebaseReaderTool, CodeAnalyzerTool
 
-\# Araç nesnelerini oluştur  
-reader\_tool \= CodebaseReaderTool()  
-analyzer\_tool \= CodeAnalyzerTool()
+# Create tool objects
+reader_tool = CodebaseReaderTool()
+analyzer_tool = CodeAnalyzerTool()
 
-tools \= \[  
-    Tool(  
-        name="Codebase Explorer",  
-        func=reader\_tool.list\_files,  
-        description="Bir Git deposunun veya yerel klasörün dosya yapısını listelemek için kullanılır. Projeye başlarken ilk olarak bu aracı kullanmalısın."  
-    ),  
-    Tool(  
-        name="File Reader",  
-        func=reader\_tool.read\_file,  
-        description="Belirli bir dosyanın içeriğini okumak için kullanılır. Argüman olarak dosya yolunu (file\_path) almalıdır."  
-    ),  
-    Tool(  
-        name="Code Analyzer",  
-        func=analyzer\_tool.analyze,  
-        description="Bir kod dosyasının içeriğini analiz etmek, özetlemek ve içindeki fonksiyon/sınıfları yapısal olarak çıkarmak için kullanılır."  
-    )  
-\]
+tools = [
+    Tool(
+        name="Codebase Explorer",
+        func=reader_tool.list_files,
+        description="Used to list the file structure of a Git repository or local folder. You should use this tool first when starting a project."
+    ),
+    Tool(
+        name="File Reader",
+        func=reader_tool.read_file,
+        description="Used to read the content of a specific file. Takes the file path (file_path) as an argument."
+    ),
+    Tool(
+        name="Code Analyzer",
+        func=analyzer_tool.analyze,
+        description="Used to analyze the content of a code file, summarize it, and structurally extract functions/classes within it."
+    )
+]
+```
 
-### **3.2. Ajan Yürütücüsünün (Agent Executor) Oluşturulması**
+### **3.2. Creating the Agent Executor**
 
-Tanımlanan araçlar, LLM ve bir ana prompt ile birlikte bir AgentExecutor içinde birleştirilir. Bu yürütücü, tüm Düşünce \-\> Eylem \-\> Gözlem döngüsünü yönetir.
+The defined tools are combined in an AgentExecutor with the LLM and a main prompt. This executor manages the entire Thought -> Action -> Observation loop.
 
-## **4\. Sistem/Ana Prompt Tasarımı**
+## **4. System/Main Prompt Design**
 
-Ajanın davranışını şekillendiren en önemli unsurlardan biri, ona verilen ilk talimatlardır (sistem promptu). Bu prompt, ajanın kimliğini, görevini, kurallarını ve araçlarını nasıl kullanacağını tanımlar.
+One of the most important factors shaping the agent's behavior is the initial instructions given to it (system prompt). This prompt defines the agent's identity, task, rules, and how to use its tools.
 
-**Örnek Sistem Promptu:**
+**Example System Prompt:**
 
-Sen, Klaro adında uzman bir yapay zeka asistanısın. Görevin, sana verilen bir kod tabanını analiz ederek otonom bir şekilde yüksek kalitede, net ve profesyonel teknik dokümantasyon (README.md dosyası) oluşturmaktır.
+```
+You are Klaro, an expert AI assistant. Your task is to analyze a given codebase autonomously and create high-quality, clear, and professional technical documentation (README.md file).
 
-Sana verilen görevleri yerine getirmek için aşağıdaki araçlara erişimin var:
+You have access to the following tools to accomplish your tasks:
 
-1\.  \*\*Codebase Explorer:\*\* Bir projenin dosya yapısını listeler. Analize her zaman bu araçla başla.  
-2\.  \*\*File Reader:\*\* Belirli bir dosyanın içeriğini okur.  
-3\.  \*\*Code Analyzer:\*\* Bir kod parçasının amacını ve yapısını analiz eder.
+1. **Codebase Explorer:** Lists the file structure of a project. Always start analysis with this tool.
+2. **File Reader:** Reads the content of a specific file.
+3. **Code Analyzer:** Analyzes the purpose and structure of a piece of code.
 
-\*\*Kuralların:\*\*  
-\- Adım adım düşünmelisin. Her adımda ne yapacağını ve neden yapacağını açıkla.  
-\- Her zaman proje yapısını listeleyerek başla.  
-\- Projenin amacını, bağımlılıklarını, nasıl kurulacağını ve nasıl kullanılacağını belirle.  
-\- Önemli fonksiyonları veya sınıfları analiz ederek dokümantasyonun "Kullanım" veya "API" bölümünü oluştur.  
-\- Tüm bilgileri topladıktan sonra, "Final Answer" olarak tam ve formatlanmış bir Markdown çıktısı sun.
+**Your Rules:**
+- You must think step by step. Explain what you will do at each step and why.
+- Always start by listing the project structure.
+- Determine the project's purpose, dependencies, how to install it, and how to use it.
+- Analyze important functions or classes to create the "Usage" or "API" section of documentation.
+- After gathering all information, present a complete and formatted Markdown output as "Final Answer".
+```
 
-## **5\. Örnek Çalışma Döngüsü: Adım Adım README Oluşturma**
+## **5. Example Workflow: Step-by-Step README Generation**
 
-Aşağıda, ajanın yukarıdaki prompt ve araçlarla bir görevi nasıl tamamladığının basitleştirilmiş bir simülasyonu yer almaktadır:
+Below is a simplified simulation of how the agent completes a task with the above prompt and tools:
 
-**Kullanıcı Girdisi:** "https://github.com/kullanici/proje-adi" için bir README oluştur.
+**User Input:** "Create a README for https://github.com/user/project-name"
 
-**Döngü 1:**
+**Loop 1:**
 
-* **Düşünce:** Kullanıcı bir README dosyası istedi. Görevime başlamak için önce projenin dosya yapısını anlamalıyım. Bunun için Codebase Explorer aracını kullanacağım.  
-* **Eylem:** Codebase Explorer(path="https://github.com/kullanici/proje-adi")  
-* **Gözlem:**  
-  /  
-  ├── requirements.txt  
-  ├── src/  
+* **Thought:** The user requested a README file. To start my task, I first need to understand the project's file structure. I'll use the Codebase Explorer tool for this.
+* **Action:** Codebase Explorer(path="https://github.com/user/project-name")
+* **Observation:**
+  ```
+  /
+  ├── requirements.txt
+  ├── src/
   │   ├── main.py
+  ```
 
-**Döngü 2:**
+**Loop 2:**
 
-* **Düşünce:** Proje yapısını gördüm. requirements.txt dosyası bağımlılıkları içeriyor olmalı. src/main.py ise ana kod gibi duruyor. Önce bağımlılıkları öğrenmek için File Reader ile requirements.txt dosyasını okuyacağım.  
-* **Eylem:** File Reader(file\_path="requirements.txt")  
-* **Gözlem:** fastapi\\nuvicorn
+* **Thought:** I saw the project structure. The requirements.txt file should contain dependencies. src/main.py looks like the main code. I'll first read requirements.txt with File Reader to learn the dependencies.
+* **Action:** File Reader(file_path="requirements.txt")
+* **Observation:** fastapi\nuvicorn
 
-**Döngü 3:**
+**Loop 3:**
 
-* **Düşünce:** Tamam, bu bir FastAPI projesi. Şimdi ana mantığı anlamak için src/main.py dosyasını okumalıyım.  
-* **Eylem:** File Reader(file\_path="src/main.py")  
-* **Gözlem:** (main.py'nin içeriği)
+* **Thought:** Okay, this is a FastAPI project. Now I need to read the src/main.py file to understand the main logic.
+* **Action:** File Reader(file_path="src/main.py")
+* **Observation:** (content of main.py)
 
-**Döngü 4:**
+**Loop 4:**
 
-* **Düşünce:** main.py içeriğini aldım. Şimdi bu kodun ne yaptığını, hangi API endpoint'lerine sahip olduğunu anlamak için Code Analyzer aracını kullanmalıyım.  
-* **Eylem:** Code Analyzer(code\_content="...")  
-* **Gözlem:** (CodeAnalyzerTool'dan gelen JSON çıktısı)
+* **Thought:** I got the main.py content. Now I should use the Code Analyzer tool to understand what this code does and what API endpoints it has.
+* **Action:** Code Analyzer(code_content="...")
+* **Observation:** (JSON output from CodeAnalyzerTool)
 
-**... (Ajan yeterli bilgi toplayana kadar bu döngü devam eder) ...**
+**... (This loop continues until the agent gathers enough information) ...**
 
-**Son Adım:**
+**Final Step:**
 
-* **Düşünce:** Projenin amacını (FastAPI), bağımlılıklarını, kurulum adımlarını (pip install) ve API endpoint'lerini öğrendim. Artık son README dosyasını oluşturmak için yeterli bilgiye sahibim.  
-* **Final Answer:**  
-  \# Proje Adı
+* **Thought:** I learned the project's purpose (FastAPI), dependencies, installation steps (pip install), and API endpoints. I now have enough information to create the final README file.
+* **Final Answer:**
+  ```markdown
+  # Project Name
 
-  Bu proje, FastAPI kullanılarak oluşturulmuş bir web servisidir.
+  This project is a web service built using FastAPI.
 
-  \#\# Kurulum
-
-  ...
-
-  \#\# API Endpoints
+  ## Installation
 
   ...
 
-## **6\. Gelecek Adım: LangGraph'e Geçiş**
+  ## API Endpoints
 
-ReAct mimarisi MVP için yeterli olsa da, daha karmaşık projelerde veya ajanın hatalarla karşılaştığı durumlarda yetersiz kalabilir. Projenin 4\. Aşamasında, daha esnek, durum bilgili (stateful) ve döngüsel (cyclical) mantık akışları oluşturmaya olanak tanıyan **LangGraph**'e geçiş yapılması planlanmaktadır. Bu, ajanın daha sağlam ve hataya dayanıklı olmasını sağlayacaktır.
+  ...
+  ```
+
+## **6. Next Step: Transition to LangGraph**
+
+Although the ReAct architecture is sufficient for MVP, it may fall short in more complex projects or situations where the agent encounters errors. In Stage 4 of the project, a transition to **LangGraph** is planned, which allows for more flexible, stateful, and cyclical (cyclical) logic flows. This will make the agent more robust and error-tolerant.

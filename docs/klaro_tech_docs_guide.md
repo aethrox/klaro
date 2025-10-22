@@ -1,57 +1,57 @@
-# **Klaro Projesi: Teknik Dokümantasyon Kullanım Kılavuzu**
+# **Klaro Project: Technical Documentation Usage Guide**
 
-## **1\. Giriş**
+## **1. Introduction**
 
-Bu kılavuz, Klaro projesinin geliştirme sürecinde kullanılacak olan temel teknik tasarım belgelerinin amacını, hedef kitlesini ve kullanım senaryolarını açıklamaktadır. Proje ekibinin tutarlı bir vizyonla ilerlemesi ve her geliştiricinin projenin farklı katmanlarını anlaması için bu belgelerin doğru bir şekilde takip edilmesi kritik öneme sahiptir.
+This guide explains the purpose, target audience, and usage scenarios of the core technical design documents used during the development of the Klaro project. It is critical for the project team to follow these documents correctly to ensure consistent progress and comprehensive understanding of the project's various layers by all developers.
 
-Aşağıda listelenen belgeler, projenin genel vizyonundan en derin teknik detaylarına kadar bir bütünlük içinde tasarlanmıştır.
+The documents listed below are designed as a cohesive whole, ranging from the project's general vision to the deepest technical details.
 
-## **2\. Belgeler ve Kullanım Talimatları**
+## **2. Documents and Usage Instructions**
 
-### **Belge 1: Otonom Belgelendirme Ajanı: Proje Planı**
+### **Document 1: Autonomous Documentation Agent: Project Plan**
 
-* **Dosya Adı:** klaro\_project\_plan  
-* **Amacı:** Projenin "neden" ve "ne" olduğunu açıklayan üst düzey bir belgedir. Projenin iş hedeflerini, vizyonunu, hedef kitlesini ve geliştirme yol haritasını özetler.  
-* **Hedef Kitle:** Proje yöneticileri, ürün sahipleri, paydaşlar ve ekibe yeni katılan herkes.  
-* **Kullanım Senaryosu:**  
-  * **Ekibe Yeni Katılanlar İçin:** Projenin amacını ve hedeflerini anlamak için okunması gereken **ilk belgedir**.  
-  * **Yol Haritası Takibi:** Geliştirme aşamalarının (MVP, Aşama 2, vb.) hedeflerini ve zaman çizelgesini takip etmek için kullanılır.  
-  * **Sunum ve Raporlama:** Proje hakkında paydaşlara sunum yaparken referans olarak kullanılır.
+* **File Name:** klaro_project_plan
+* **Purpose:** A high-level document explaining the "why" and "what" of the project. It summarizes the project's business objectives, vision, target audience, and development roadmap.
+* **Target Audience:** Project managers, product owners, stakeholders, and anyone new to the team.
+* **Usage Scenarios:**
+  * **For New Team Members:** This is the **first document** to read to understand the project's purpose and goals.
+  * **Roadmap Tracking:** Used to track development stage goals (MVP, Stage 2, etc.) and timelines.
+  * **Presentations and Reporting:** Serves as a reference when presenting the project to stakeholders.
 
-### **Belge 2: Teknik Tasarım \- Özel Ajan Araçları**
+### **Document 2: Technical Design - Custom Agent Tools**
 
-* **Dosya Adı:** tech\_design\_custom\_tools  
-* **Amacı:** Ajanın dış dünya ile (kod tabanı) nasıl etkileşim kurduğunu tanımlayan teknik bir belgedir. CodebaseReaderTool ve CodeAnalyzerTool'un mimarisini, fonksiyonlarını ve beklenen çıktılarını detaylandırır.  
-* **Hedef Kitle:** Ajanın temel yeteneklerini (kod okuma, analiz etme) geliştirecek olan yazılım mühendisleri.  
-* **Kullanım Senaryosu:**  
-  * **Geliştirme:** CodebaseReaderTool ve CodeAnalyzerTool sınıflarını kodlarken bu belge bir spesifikasyon olarak kullanılmalıdır.  
-  * **Hata Ayıklama (Debugging):** Araçların beklenmedik bir davranış sergilemesi durumunda, beklenen girdi/çıktı formatlarını kontrol etmek için başvurulur.  
-  * **Genişletme:** Ajan'a yeni bir "yetenek" (örneğin, bir veritabanı şemasını okuma aracı) eklenmek istendiğinde, mevcut araçların tasarım prensipleri bu belgeden referans alınır.
+* **File Name:** tech_design_custom_tools
+* **Purpose:** A technical document defining how the agent interacts with the external world (codebase). It details the architecture, functions, and expected outputs of CodebaseReaderTool and CodeAnalyzerTool.
+* **Target Audience:** Software engineers who will develop the agent's core capabilities (code reading, analysis).
+* **Usage Scenarios:**
+  * **Development:** This document should be used as a specification when coding the CodebaseReaderTool and CodeAnalyzerTool classes.
+  * **Debugging:** When tools exhibit unexpected behavior, refer to this to verify expected input/output formats.
+  * **Extension:** When adding new capabilities to the agent (e.g., a tool to read database schemas), reference the design principles of existing tools from this document.
 
-### **Belge 3: Teknik Tasarım \- Ajan Mimarisi ve Entegrasyonu**
+### **Document 3: Technical Design - Agent Architecture and Integration**
 
-* **Dosya Adı:** tech\_design\_agent\_architecture  
-* **Amacı:** Ajanın "beyninin" nasıl çalıştığını açıklar. Araçları nasıl kullanacağına nasıl karar verdiğini (ReAct mimarisi), sistem promptunu ve temel Düşünce \-\> Eylem \-\> Gözlem döngüsünü tanımlar.  
-* **Hedef Kitle:** Yapay zeka mühendisleri ve ajanın karar verme mantığı üzerinde çalışan geliştiriciler.  
-* **Kullanım Senaryosu:**  
-  * **MVP Geliştirme:** Projenin 1\. ve 2\. Aşamalarında, ReAct ajanını kurarken ve ana AgentExecutor'ı oluştururken kullanılır.  
-  * **Prompt Mühendisliği:** Ajanın davranışlarını iyileştirmek için sistem promptu üzerinde değişiklikler yaparken bu belgeye başvurulur.  
-  * **Akış Analizi:** Ajanın neden belirli bir aracı seçtiğini veya neden bir döngüde takılıp kaldığını anlamak için kullanılır.
+* **File Name:** tech_design_agent_architecture
+* **Purpose:** Explains how the agent's "brain" works. Defines how it decides which tools to use (ReAct architecture), the system prompt, and the core Thought -> Action -> Observation loop.
+* **Target Audience:** AI engineers and developers working on the agent's decision-making logic.
+* **Usage Scenarios:**
+  * **MVP Development:** Used during Stages 1 and 2 of the project when setting up the ReAct agent and building the main AgentExecutor.
+  * **Prompt Engineering:** Refer to this document when making changes to the system prompt to improve the agent's behavior.
+  * **Flow Analysis:** Used to understand why the agent chose a particular tool or why it got stuck in a loop.
 
-### **Belge 4: Teknik Tasarım \- Gelişmiş Ajan Mimarisi (LangGraph)**
+### **Document 4: Technical Design - Advanced Agent Architecture (LangGraph)**
 
-* **Dosya Adı:** tech\_design\_advanced\_agent\_langgraph  
-* **Amacı:** Projenin gelecekteki, daha sağlam ve hataya dayanıklı versiyonunun planını çizer. ReAct'ten LangGraph'e geçişin nedenlerini ve bu yeni mimarinin (Durum, Düğümler, Kenarlar) nasıl tasarlanacağını anlatır.  
-* **Hedef Kitle:** Kıdemli geliştiriciler, sistem mimarları ve projenin uzun vadeli teknik vizyonundan sorumlu olanlar.  
-* **Kullanım Senaryosu:**  
-  * **Gelecek Planlaması:** Projenin 4\. Aşamasına geçildiğinde, bu belge LangGraph implementasyonu için ana kılavuz olacaktır.  
-  * **Karmaşık Senaryolar:** Ajanın hata yönetimi, döngüsel mantık ve daha karmaşık görev akışları gibi yetenekler kazanması gerektiğinde bu tasarıma başvurulur.
+* **File Name:** tech_design_advanced_agent_langgraph
+* **Purpose:** Outlines the plan for the project's future, more robust and error-tolerant version. Explains the reasons for transitioning from ReAct to LangGraph and how this new architecture (State, Nodes, Edges) should be designed.
+* **Target Audience:** Senior developers, system architects, and those responsible for the project's long-term technical vision.
+* **Usage Scenarios:**
+  * **Future Planning:** When transitioning to Stage 4 of the project, this document will serve as the main guide for LangGraph implementation.
+  * **Complex Scenarios:** When the agent needs to gain capabilities like error handling, cyclical logic, and more complex task flows, refer to this design.
 
-## **3\. Önerilen Okuma Sırası**
+## **3. Recommended Reading Order**
 
-Bir geliştiricinin projeyi tam olarak anlaması için belgeleri aşağıdaki sırayla okuması tavsiye edilir:
+For a developer to fully understand the project, it is recommended to read the documents in the following order:
 
-1. **Proje Planı:** "Ne yapıyoruz ve neden?"  
-2. **Özel Ajan Araçları:** "Ajanın 'elleri' ve 'gözleri' nasıl çalışıyor?"  
-3. **Ajan Mimarisi:** "Ajanın 'beyni' bu 'elleri' ve 'gözleri' nasıl kullanıyor?"  
-4. **Gelişmiş Ajan Mimarisi:** "Gelecekte bu 'beyni' nasıl daha akıllı ve sağlam hale getireceğiz?"
+1. **Project Plan:** "What are we building and why?"
+2. **Custom Agent Tools:** "How do the agent's 'hands' and 'eyes' work?"
+3. **Agent Architecture:** "How does the agent's 'brain' use these 'hands' and 'eyes'?"
+4. **Advanced Agent Architecture:** "How will we make this 'brain' smarter and more robust in the future?"
