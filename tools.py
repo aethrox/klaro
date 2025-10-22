@@ -127,8 +127,10 @@ def read_file(file_path: str) -> str:
 
 def _extract_docstring(node):
     """Extracts the docstring from an AST node."""
-    if isinstance(node.body[0], ast.Expr) and isinstance(node.body[0].value, (ast.Str, ast.Constant)):
-        return node.body[0].value.s if isinstance(node.body[0].value, ast.Str) else node.body[0].value.value
+    if not node.body or not isinstance(node.body[0], ast.Expr):
+        return None
+    if isinstance(node.body[0].value, ast.Constant) and isinstance(node.body[0].value.value, str):
+        return node.body[0].value.value
     return None
 
 
@@ -153,12 +155,18 @@ def analyze_code(code_content: str) -> str:
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
             docstring = _extract_docstring(node)
             parameters = [f"{arg.arg}" for arg in node.args.args]
-            
+
+            # Safely extract return type annotation
+            try:
+                return_type = ast.unparse(node.returns).strip() if node.returns else "None"
+            except Exception:
+                return_type = "Unknown"
+
             components.append({
                 "type": "function",
                 "name": node.name,
                 "parameters": parameters,
-                "returns": ast.unparse(node.returns).strip() if node.returns else "None",
+                "returns": return_type,
                 "docstring": docstring if docstring else "None",
                 "lineno": node.lineno
             })
@@ -170,11 +178,17 @@ def analyze_code(code_content: str) -> str:
                 if isinstance(item, (ast.FunctionDef, ast.AsyncFunctionDef)):
                     method_docstring = _extract_docstring(item)
                     method_parameters = [f"{arg.arg}" for arg in item.args.args]
-                    
+
+                    # Safely extract return type annotation
+                    try:
+                        method_return_type = ast.unparse(item.returns).strip() if item.returns else "None"
+                    except Exception:
+                        method_return_type = "Unknown"
+
                     methods.append({
                         "name": item.name,
                         "parameters": method_parameters,
-                        "returns": ast.unparse(item.returns).strip() if item.returns else "None",
+                        "returns": method_return_type,
                         "docstring": method_docstring if method_docstring else "None",
                     })
 
@@ -210,29 +224,32 @@ def web_search(query: str) -> str:
 def init_knowledge_base(documents: list[Document]) -> str:
     """Initializes and persists Klaro's knowledge base (Vector Database). Must be called once."""
     global KLARO_RETRIEVER
-    
+
     if not documents:
         return "Warning: No documents provided for initialization."
 
-    # 1. Chunking
-    text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
-    texts = text_splitter.split_documents(documents)
-    
-    # 2. Embeddings and Vector Store Creation
-    # This requires the OPENAI_API_KEY environment variable to be set.
-    embeddings = OpenAIEmbeddings(model="text-embedding-3-small") 
-    
-    # Chroma is used as the local vector store
-    vectorstore = Chroma.from_documents(
-        documents=texts, 
-        embedding=embeddings, 
-        persist_directory=VECTOR_DB_PATH
-    )
-    
-    # 3. Set Retriever Globally
-    KLARO_RETRIEVER = vectorstore.as_retriever(search_kwargs={"k": 3}) 
-    
-    return f"Knowledge base (ChromaDB) successfully initialized at {VECTOR_DB_PATH}. {len(texts)} chunks indexed."
+    try:
+        # 1. Chunking
+        text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
+        texts = text_splitter.split_documents(documents)
+
+        # 2. Embeddings and Vector Store Creation
+        # This requires the OPENAI_API_KEY environment variable to be set.
+        embeddings = OpenAIEmbeddings(model="text-embedding-3-small")
+
+        # Chroma is used as the local vector store
+        vectorstore = Chroma.from_documents(
+            documents=texts,
+            embedding=embeddings,
+            persist_directory=VECTOR_DB_PATH
+        )
+
+        # 3. Set Retriever Globally
+        KLARO_RETRIEVER = vectorstore.as_retriever(search_kwargs={"k": 3})
+
+        return f"Knowledge base (ChromaDB) successfully initialized at {VECTOR_DB_PATH}. {len(texts)} chunks indexed."
+    except Exception as e:
+        return f"Error initializing knowledge base: {e}"
 
 
 def retrieve_knowledge(query: str) -> str:
