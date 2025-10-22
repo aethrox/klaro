@@ -1,5 +1,3 @@
-# tools.py - Final English Version (Eksiksiz ve RAG Dahil)
-
 import os
 import re
 import ast
