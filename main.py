@@ -1,94 +1,134 @@
-# main.py - Final English Version (Saf Python ReAct)
-
 import os
+from typing import TypedDict, Annotated, Sequence
+
+# LangGraph and LangChain Imports
+from langgraph.graph import StateGraph, END
+# Claude'nin önerisine uygun olarak sadece ToolNode'u import ediyoruz.
+from langgraph.prebuilt import ToolNode 
+# ToolExecutor'ı burada import etmeyeceğiz.
+# from langchain.agents.executor import ToolExecutor # <-- BU SATIRI KALDIRDIK
+
+from langchain_openai import ChatOpenAI
+from langchain_core.messages import BaseMessage, HumanMessage, ToolMessage
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.tools import Tool
+from langchain_core.documents import Document 
+
 from dotenv import load_dotenv 
 load_dotenv() 
-
-import re
-import json
-from langchain_openai import ChatOpenAI
-from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.messages import HumanMessage
-from langchain_core.documents import Document # For RAG
 
 from prompts import SYSTEM_PROMPT 
 from tools import list_files, read_file, analyze_code, web_search, init_knowledge_base, retrieve_knowledge 
 
-# --- 1. Configuration and Model Selection ---
+# --- 1. Configuration ---
 LLM_MODEL = "gpt-4o-mini" 
 llm = ChatOpenAI(model=LLM_MODEL, temperature=0.2) 
 
-# Collect all tools into a dictionary
-TOOLS = {
-    "list_files": list_files,
-    "read_file": read_file,
-    "analyze_code": analyze_code,
-    "web_search": web_search,
-    "retrieve_knowledge": retrieve_knowledge, # RAG tool
-}
+# --- 2. Tool Setup (LLM Binding) ---
 
-# Create a clean list of tool descriptions for the LLM prompt
-TOOL_DESCRIPTIONS = "\n".join([f"- {name}: {tool.__doc__.strip()}" for name, tool in TOOLS.items()])
+# Manually wrap the plain Python functions from tools.py into LangChain Tool objects.
+# The docstrings provide the description for the LLM's Tool Calling mechanism.
+tools = [
+    Tool(name="list_files", func=list_files, description=list_files.__doc__),
+    Tool(name="read_file", func=read_file, description=read_file.__doc__),
+    Tool(name="analyze_code", func=analyze_code, description=analyze_code.__doc__),
+    Tool(name="web_search", func=web_search, description=web_search.__doc__),
+    Tool(name="retrieve_knowledge", func=retrieve_knowledge, description=retrieve_knowledge.__doc__),
+]
 
-# --- 2. Prompt Template (Pure ReAct Format) ---
-REACT_PROMPT_TEMPLATE = """
-{system_prompt}
+tool_executor = tools
 
-Available Tools (Tools) and Descriptions:
--------------------------
-{tool_descriptions}
--------------------------
+# Bind the tools to the LLM model to enable Tool Calling functionality.
+model = llm.bind_tools(tools)
 
-Current Conversation History and Scratchpad (Thought, Action, Observation):
-{scratchpad}
+# --- 3. LangGraph State Definition ---
 
-User's Task: {input}
+class AgentState(TypedDict):
+    """Defines the state carried across the LangGraph steps."""
+    # Conversation history: Appends new messages to the end (Reductor logic).
+    messages: Annotated[Sequence[BaseMessage], lambda x, y: x + y] 
+    # Placeholder for tracking errors or complex state manipulation.
+    error_log: str 
 
-Please use the tools above, following the Thought and Action steps to complete the task.
-You MUST strictly adhere to the Action format: `Action: tool_name[parameter]` (Example: Action: list_files[.])
-To end the loop, provide your final answer in the format: **'Final Answer: [MARKDOWN_CONTENT]'**
-"""
+# --- 4. LangGraph Nodes ---
 
-def parse_action(text: str) -> tuple[str, str] | None:
-    """Parses Action and parameter from the LLM's output."""
+def run_model(state: AgentState):
+    """The node that invokes the LLM (Agent's Thinking step)."""
+    # Send the entire message history to the LLM.
+    response = model.invoke(state["messages"])
+    # Append the LLM's response and clear any previous error.
+    return {"messages": [response], "error_log": ""} 
+
+# --- 5. LangGraph Router (Edges) ---
+
+def decide_next_step(state: AgentState):
+    """Decides where the flow goes based on the LLM's last output."""
+    last_message = state["messages"][-1]
     
-    # 1. Look for the standard Action pattern: Action: tool_name[param]
-    match = re.search(r"Action:\s*(\w+)\s*\[(.*?)\]", text, re.DOTALL)
-    
-    if match:
-        action = match.group(1).strip()
-        param = match.group(2).strip().strip("'\"") 
-        return action, param
-    
-    # 2. Look for the function call pattern: Action: tool_name(param)
-    match_func = re.search(r"Action:\s*(\w+)\s*\((.*?)\)", text, re.DOTALL)
-    if match_func:
-        action = match_func.group(1).strip()
-        param = match_func.group(2).strip().strip("'\"")
-        return action, param
-        
-    return None
+    # 1. Check for immediate error from a previous tool execution.
+    if state.get("error_log"):
+         # If an error occurred, route back to the model for replanning.
+         return "run_model" 
 
-# RAG Style Guide Content
+    # 2. Check for Final Answer (Agent has completed the task).
+    if last_message.content and "Final Answer" in last_message.content:
+        return END # Terminate the graph.
+
+    # 3. Check for Tool Call (The LLM requesting to use a tool).
+    if last_message.tool_calls:
+        return "call_tool"
+    
+    # 4. If none of the above, loop back to the model for the next thought step.
+    return "run_model" 
+
+# --- 6. LangGraph Setup ---
+
+workflow = StateGraph(AgentState)
+
+# Add Nodes
+workflow.add_node("run_model", run_model)
+# When setting up ToolNode, we now provide the tool list directly instead of ToolExecutor.
+workflow.add_node("call_tool", ToolNode(tool_executor)) 
+
+# Set Entry Point
+workflow.set_entry_point("run_model")
+
+# Add Conditional Edges
+workflow.add_conditional_edges(
+    "run_model",
+    decide_next_step,
+    {
+        "call_tool": "call_tool", 
+        END: END,               
+        "run_model": "run_model" 
+    }
+)
+
+# After tool execution, always return to the model to process the Observation (ToolMessage).
+workflow.add_edge("call_tool", "run_model")
+
+# Compile the graph
+app = workflow.compile()
+
+# --- 7. Execution Function ---
+
+# RAG Style Guide Content (Copied from tools.py)
 DEFAULT_GUIDE_CONTENT = """
 # Klaro Project Documentation Style Guide: 
-
 All README.md documents produced using this guide must adhere to the following standards:
-
 1.  **Heading Structure:** Headings must start with # and ##.
 2.  **Sections:** Every README must include the following sections: `# Project Name`, `## Setup`, `## Usage`, `## Components`.
 3.  **Tone and Language:** The tone must be technical, professional, and clear. Code examples must always be formatted with triple backticks (```python).
 """
 
-def run_klaro_agent(project_path: str = "."):
+def run_klaro_langgraph(project_path: str = "."):
     """
-    Runs the Klaro Pure Python ReAct Agent.
+    Runs the Klaro LangGraph Agent.
     """
-    print(f"--- Launching Klaro Autonomous Documentation Agent (Pure Python ReAct - {LLM_MODEL}) ---")
+    print(f"--- Launching Klaro LangGraph Agent (Stage 4 - {LLM_MODEL}) ---")
     
-    # 🌟 STAGE 3 INTEGRATION: Knowledge Base Setup (RAG)
+    # --- STAGE 3 INTEGRATION: Knowledge Base Setup (RAG) ---
     print("📢 Initializing RAG Knowledge Base...")
-    
     documents_to_index = [
         Document(page_content=DEFAULT_GUIDE_CONTENT, metadata={"source": "Klaro_Style_Guide"}),
     ]
@@ -96,81 +136,41 @@ def run_klaro_agent(project_path: str = "."):
     setup_result = init_knowledge_base(documents_to_index)
     print(f"   -> Setup Result: {setup_result}")
 
-    max_steps = 15 
-    scratchpad = "" 
-    
     task_input = (
         f"Please analyze the codebase in '{project_path}' and create a README.md document. "
         "Steps: 1. Explore with 'list_files'. 2. Read critical files with 'read_file' and analyze code with 'analyze_code'. "
-        "3. Gather external info with 'web_search'. 4. Use the 'retrieve_knowledge' tool to fetch the 'README style guidelines' before writing the final answer."
+        "3. Gather external info with 'web_search'. 4. **You MUST use the 'retrieve_knowledge' tool to fetch the 'README style guidelines' before writing the final answer.**"
     )
+
+    # Prepare the initial state for the graph.
+    # The System Prompt and the user's task are combined into the first HumanMessage.
+    initial_message_content = f"{SYSTEM_PROMPT}\n\nUSER'S TASK: {task_input}"
     
-    current_prompt = ChatPromptTemplate.from_template(REACT_PROMPT_TEMPLATE)
+    inputs = {"messages": [HumanMessage(content=initial_message_content)], "error_log": ""}
     
-    for step in range(max_steps):
-        print(f"\n--- STEP {step + 1} / {max_steps} ---")
+    try:
+        # Run the LangGraph flow
+        final_state = app.invoke(inputs, {"recursion_limit": 50}) 
         
-        # 1. Prepare Prompt
-        formatted_prompt = current_prompt.format(
-            system_prompt=SYSTEM_PROMPT,
-            tool_descriptions=TOOL_DESCRIPTIONS,
-            scratchpad=scratchpad,
-            input=task_input
-        )
+        # Extract the final message
+        final_message = final_state["messages"][-1].content
         
-        # 2. Run LLM (Thought -> Action)
-        messages = [
-            HumanMessage(content=formatted_prompt)
-        ]
+        print("\n" + "="*50)
+        print("✅ TASK SUCCESS: LangGraph Agent Finished.")
+        print("====================================")
         
-        try:
-            llm_output = llm.invoke(messages).content
-        except Exception as e:
-            print(f"LLM Call Failed: {e}")
-            break
+        # Clean the Final Answer format
+        if final_message.startswith("Final Answer:"):
+             final_message = final_message.replace("Final Answer:", "").strip()
+             
+        print(final_message)
 
-        print(f"LLM Output:\n{llm_output}")
-        scratchpad += f"\n{llm_output}" 
-        
-        # 3. Final Answer Check
-        if "Final Answer:" in llm_output:
-            print("====================================")
-            print("✅ TASK SUCCESS: Final Answer received.")
-            final_answer = llm_output.split("Final Answer:")[1].strip()
-            return final_answer
-        
-        # 4. Parse Action (Action -> Observation)
-        action_pair = parse_action(llm_output)
-        
-        if not action_pair:
-            observation = "Observation: Error: No valid 'Action: tool_name[param]' format found. Please strictly adhere to the ReAct format."
-        else:
-            action, param = action_pair
-            
-            print(f"-> Executing: {action}['{param}']")
-            
-            # 5. Execute Tool and Observe
-            if action in TOOLS:
-                try:
-                    tool_func = TOOLS[action]
-                    observation_result = tool_func(param)
-                    observation = f"Observation: {observation_result}"
-                except Exception as e:
-                    observation = f"Observation: Tool Execution Error: {e}"
-            else:
-                observation = f"Observation: Error: Unknown tool name '{action}'. Please use one from the TOOLS list."
-
-        print(f"Observation Added:\n{observation}")
-        scratchpad += f"\n{observation}"
-
-    # Reached maximum steps
-    print("\n====================================")
-    return "Error: Maximum steps reached (15 steps). Agent failed to complete the task."
+    except Exception as e:
+        print("\n" + "="*50)
+        print("❌ ERROR: LangGraph execution failed.")
+        print(f"Error Details: {e}")
+        print("="*50)
 
 
 if __name__ == "__main__":
-    final_result = run_klaro_agent(project_path=".")
-    print("\n" + "="*50)
-    print("KLARO RESULT:")
-    print("="*50)
-    print(final_result)
+    run_klaro_langgraph(project_path=".")
