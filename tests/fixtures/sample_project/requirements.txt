@@ -1,0 +1,1 @@
+# Sample project dependencies (for testing purposes)
