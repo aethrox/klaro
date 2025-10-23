@@ -1,120 +1,120 @@
-# **Klaro: Teknik Tasarım \- Özel Ajan Araçları**
+# **Klaro: Technical Design - Custom Agent Tools**
 
-## **1\. Giriş**
+## **1. Introduction**
 
-Bu belge, Klaro projesinin otonom belgelendirme ajanının temelini oluşturan özel araçların (Custom Tools) teknik tasarımını açıklamaktadır. Bu araçlar, ajanın bir kod tabanını "görmesini", "gezinmesini" ve "anlamasını" sağlayan temel yeteneklerdir. Tasarımları, ajanın proaktif ve akıllı kararlar alabilmesi için modüler ve ajan odaklı (agentic) bir yaklaşımla yapılmıştır.
+This document explains the technical design of the custom tools that form the foundation of Klaro project's autonomous documentation agent. These tools are the core capabilities that enable the agent to "see," "navigate," and "understand" a codebase. Their designs use a modular and agentic approach to enable the agent to make proactive and intelligent decisions.
 
-## **2\. Temel Tasarım Prensibi: Ajan Odaklı Yetenekler**
+## **2. Core Design Principle: Agent-Centric Capabilities**
 
-Araçlar, tüm kod tabanını tek seferde işleyen monolitik bir yapı yerine, ajanın ihtiyaç duyduğu bilgiyi anlık olarak çekebileceği (pull) bir dizi yetenek olarak tasarlanmıştır. Bu yaklaşım, LLM'lerin bağlam penceresi (context window) limitasyonlarını aşar ve ajanın büyük projelerde bile verimli bir şekilde çalışmasını sağlar. Ajan, direksiyondaki pilot, araçlar ise onun gösterge paneli ve kontrol mekanizmalarıdır.
+Rather than a monolithic structure that processes the entire codebase at once, the tools are designed as a set of capabilities that allow the agent to pull information as needed. This approach overcomes LLM context window limitations and enables the agent to work efficiently even on large projects. The agent is the pilot at the wheel, and the tools are its dashboard and control mechanisms.
 
-## **3\. Araç 1: CodebaseReaderTool**
+## **3. Tool 1: CodebaseReaderTool**
 
-Bu araç, ajanın bir dosya sistemi veya Git deposu ile etkileşim kurmasını sağlar. Temel amacı, ajana keşif ve okuma yetenekleri kazandırmaktır.
+This tool enables the agent to interact with a file system or Git repository. Its primary purpose is to provide the agent with exploration and reading capabilities.
 
-### **3.1. Amaç**
+### **3.1. Purpose**
 
-Bir Git deposunu veya yerel proje klasörünü analiz ederek, ajanın proje yapısını anlamasını ve belirli dosyaların içeriğine erişmesini sağlamak.
+To enable the agent to understand project structure and access specific file contents by analyzing a Git repository or local project folder.
 
-### **3.2. Çözülmesi Gereken Zorluk**
+### **3.2. Challenge to Solve**
 
-Büyük kod tabanlarının tamamını LLM'in bağlam penceresine sığdırmak imkansızdır. Bu nedenle, ajanın tüm projeyi "görmeden" içinde akıllıca gezinebilmesi gerekir.
+It's impossible to fit an entire large codebase into an LLM's context window. Therefore, the agent must be able to navigate intelligently within the project without "seeing" everything at once.
 
-### **3.3. Tasarım ve Alt Fonksiyonlar**
+### **3.3. Design and Sub-functions**
 
-CodebaseReaderTool, birden fazla alt fonksiyondan oluşan bir yetenek setidir:
+CodebaseReaderTool consists of a capability set with multiple sub-functions:
 
-#### **a) list\_files(path: str) \-\> str**
+#### **a) list_files(path: str) -> str**
 
-* **Girdi:** Bir Git deposu URL'si veya yerel dosya yolu.  
-* **İşlem:**  
-  1. Eğer girdi bir URL ise, depoyu geçici bir dizine klonlar.  
-  2. Proje kök dizininde gezinerek dosya ve klasör yapısını tarar.  
-  3. .gitignore dosyasını okur ve .git, node\_modules, \_\_pycache\_\_ gibi yaygın olarak ihmal edilen dosyalarla birlikte bu listedeki dosyaları filtreler.  
-* **Çıktı:** Projenin dosya ağacı yapısını gösteren, temiz ve okunabilir bir metin (string).
+* **Input:** A Git repository URL or local file path.
+* **Process:**
+  1. If input is a URL, clones the repository to a temporary directory.
+  2. Navigates the project root directory to scan file and folder structure.
+  3. Reads .gitignore file and filters these files along with commonly ignored files like .git, node_modules, __pycache__.
+* **Output:** Clean, readable text (string) showing the project's file tree structure.
 
-#### **b) read\_file(file\_path: str) \-\> str**
+#### **b) read_file(file_path: str) -> str**
 
-* **Girdi:** Okunması istenen dosyanın tam yolu (örneğin, src/main.py).  
-* **İşlem:** Belirtilen dosyanın içeriğini okur.  
-* **Çıktı:** Dosyanın ham içeriğini içeren bir metin.
+* **Input:** Full path of the file to be read (e.g., src/main.py).
+* **Process:** Reads the content of the specified file.
+* **Output:** Text containing the raw content of the file.
 
-### **3.4. Örnek İş Akışı**
+### **3.4. Example Workflow**
 
-1. **Ajan Düşüncesi:** "Projenin genel yapısını anlamam gerekiyor."  
-2. **Eylem:** CodebaseReaderTool.list\_files(path="https://github.com/...")  
-3. **Gözlem (Araç Çıktısı):**  
-   /  
-   ├── .gitignore  
-   ├── README.md  
-   ├── requirements.txt  
-   ├── src/  
-   │   ├── main.py  
+1. **Agent Thought:** "I need to understand the overall structure of the project."
+2. **Action:** CodebaseReaderTool.list_files(path="https://github.com/...")
+3. **Observation (Tool Output):**
+   /
+   ├── .gitignore
+   ├── README.md
+   ├── requirements.txt
+   ├── src/
+   │   ├── main.py
    │   └── utils.py
 
-4. **Ajan Düşüncesi:** "Yapıyı anladım. Bağımlılıkları öğrenmek için requirements.txt dosyasını ve ana mantığı görmek için src/main.py dosyasını okumalıyım."  
-5. **Eylem:** CodebaseReaderTool.read\_file(file\_path="requirements.txt")  
-6. **Gözlem:** (requirements.txt içeriği)  
-7. **Eylem:** CodebaseReaderTool.read\_file(file\_path="src/main.py")  
-8. **Gözlem:** (main.py içeriği)
+4. **Agent Thought:** "I understand the structure. I need to read requirements.txt to learn dependencies and src/main.py to see the main logic."
+5. **Action:** CodebaseReaderTool.read_file(file_path="requirements.txt")
+6. **Observation:** (requirements.txt content)
+7. **Action:** CodebaseReaderTool.read_file(file_path="src/main.py")
+8. **Observation:** (main.py content)
 
-## **4\. Araç 2: CodeAnalyzerTool**
+## **4. Tool 2: CodeAnalyzerTool**
 
-Bu araç, bir kod parçasının "ne yaptığını" anlamsal ve yapısal olarak analiz eder.
+This tool semantically and structurally analyzes what a code segment "does."
 
-### **4.1. Amaç**
+### **4.1. Purpose**
 
-Ajan tarafından okunan bir kod dosyasının içeriğini analiz ederek; amacını, içerdiği fonksiyonları, sınıfları ve bunların ilişkilerini yapılandırılmış bir formatta sunmak.
+To analyze the content of a code file read by the agent and present its purpose, contained functions, classes, and their relationships in a structured format.
 
-### **4.2. Çözülmesi Gereken Zorluk**
+### **4.2. Challenge to Solve**
 
-Ham kodu doğrudan LLM'e göndermek, modelin önemli detayları kaçırmasına veya yanlış yorumlamasına (halüsinasyon) neden olabilir. Programatik analiz, bu riski azaltır ve daha güvenilir sonuçlar sağlar.
+Sending raw code directly to the LLM can cause the model to miss important details or misinterpret (hallucinate). Programmatic analysis reduces this risk and provides more reliable results.
 
-### **4.3. Tasarım ve Mimari (Hibrit Yaklaşım: AST \+ LLM)**
+### **4.3. Design and Architecture (Hybrid Approach: AST + LLM)**
 
-Bu araç, en iyi sonuçları elde etmek için iki aşamalı bir mimari kullanır:
+This tool uses a two-stage architecture for best results:
 
-#### **Aşama 1: Programatik Analiz (AST \- Soyut Sözdizimi Ağacı)**
+#### **Stage 1: Programmatic Analysis (AST - Abstract Syntax Tree)**
 
-* Python'un ast kütüphanesi gibi yerleşik araçlar kullanılarak, kodun içeriği programatik olarak ayrıştırılır (parse edilir).  
-* Bu aşamada, kodun mantığını anlamadan, aşağıdaki gibi yapısal bilgiler çıkarılır:  
-  * Tüm sınıf ve fonksiyon tanımları (ClassDef, FunctionDef).  
-  * Fonksiyonların aldığı parametreler, varsayılan değerleri ve tip ipuçları (type hints).  
-  * Mevcut docstring'ler.
+* Using built-in tools like Python's ast library, code content is programmatically parsed.
+* At this stage, structural information is extracted without understanding code logic:
+  * All class and function definitions (ClassDef, FunctionDef).
+  * Parameters functions take, their default values, and type hints.
+  * Existing docstrings.
 
-#### **Aşama 2: Anlamsal Özetleme (LLM)**
+#### **Stage 2: Semantic Summarization (LLM)**
 
-* AST aşamasında çıkarılan yapısal veriler, LLM'e özel bir prompt şablonu ile gönderilir.  
-* Bu prompt, LLM'den bu yapısal bilgileri ve docstring'leri kullanarak her bir bileşenin (fonksiyon/sınıf) amacını "insan dilinde" açıklamasını ve dosyanın genel bir özetini çıkarmasını ister.
+* Structural data extracted in the AST stage is sent to the LLM with a special prompt template.
+* This prompt asks the LLM to use this structural information and docstrings to explain each component's (function/class) purpose "in human language" and extract an overall summary of the file.
 
-### **4.4. Girdi ve Çıktı Formatı**
+### **4.4. Input and Output Format**
 
-* **Girdi:** Analiz edilecek kod içeriğini içeren bir metin (string).  
-* **Çıktı:** Ajanın kolayca işleyebileceği, standart bir JSON nesnesi.
+* **Input:** Text (string) containing the code content to be analyzed.
+* **Output:** A standard JSON object that the agent can easily process.
 
-**Örnek JSON Çıktısı:**
+**Example JSON Output:**
 
-{  
-  "file\_path": "src/utils.py",  
-  "summary": "Bu modül, kullanıcı verilerini işlemek ve doğrulamak için yardımcı fonksiyonlar içerir.",  
-  "components": \[  
-    {  
-      "type": "function",  
-      "name": "format\_user\_data",  
-      "parameters": \["user\_id (int)", "data (dict)"\],  
-      "returns": "dict",  
-      "description": "Kullanıcı verisini alır ve API için standart bir formata dönüştürür."  
-    },  
-    {  
-      "type": "function",  
-      "name": "validate\_email",  
-      "parameters": \["email (str)"\],  
-      "returns": "bool",  
-      "description": "Verilen e-postanın geçerli bir formatta olup olmadığını kontrol eder."  
-    }  
-  \]  
+{
+  "file_path": "src/utils.py",
+  "summary": "This module contains helper functions for processing and validating user data.",
+  "components": [
+    {
+      "type": "function",
+      "name": "format_user_data",
+      "parameters": ["user_id (int)", "data (dict)"],
+      "returns": "dict",
+      "description": "Takes user data and converts it to a standard format for the API."
+    },
+    {
+      "type": "function",
+      "name": "validate_email",
+      "parameters": ["email (str)"],
+      "returns": "bool",
+      "description": "Checks whether the given email is in a valid format."
+    }
+  ]
 }
 
-## **5\. Sonraki Adımlar**
+## **5. Next Steps**
 
-Bu iki temel araç, projenin temelini oluşturmaktadır. Bir sonraki teknik aşama, bu araçları bir LangChain Ajanı (örneğin, ReAct Agent) ile entegre ederek, ajanın bu yetenekleri kullanarak otonom bir şekilde planlama yapmasını ve görevleri yürütmesini sağlamaktır.
+These two core tools form the foundation of the project. The next technical stage is to integrate these tools with a LangChain Agent (e.g., ReAct Agent) to enable the agent to autonomously plan and execute tasks using these capabilities.

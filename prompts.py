@@ -1,3 +1,61 @@
+"""
+Klaro System Prompts Module
+
+This module defines the core system prompts that shape the behavior, decision-making, and
+operational guidelines of the Klaro autonomous documentation agent.
+
+The prompts implement a ReAct (Reasoning and Acting) framework that guides the agent through:
+- Structured thought process (Thought -> Action -> Observation)
+- Tool selection and usage protocols
+- Documentation generation standards and workflows
+
+ReAct Format Explanation:
+    The agent operates in a continuous loop where each iteration consists of:
+
+    1. **Thought**: Agent reasons about the current situation and decides next action
+       Example: "I need to understand the project structure first."
+
+    2. **Action**: Agent selects and executes a tool with specific parameters
+       Format: Action: tool_name[parameter]
+       Example: Action: list_files["."]
+
+    3. **Observation**: Agent receives and processes tool output
+       Example: "I can see the project has main.py, tools.py, and requirements.txt"
+
+    This cycle repeats until the agent determines it has sufficient information to
+    produce the final documentation output.
+
+Prompt Structure:
+    - **Identity**: Defines agent as "Klaro" - a technical documentation specialist
+    - **Operating Principle**: Emphasizes strict adherence to ReAct format
+    - **Available Tools**: Lists all tools with descriptions and usage guidelines
+    - **Goals**: Ordered workflow steps from exploration to final output
+    - **Output Format**: Mandates "Final Answer: [MARKDOWN_CONTENT]" format
+
+Tool Usage Order (Enforced by Prompt):
+    1. list_files: Get project overview and file structure
+    2. read_file: Read critical files (main.py, requirements.txt, etc.)
+    3. analyze_code: Extract structured code information via AST
+    4. retrieve_knowledge: Fetch README style guidelines from RAG system
+    5. Final Answer: Generate formatted markdown documentation
+
+Design Decisions:
+    - Tools must be called with explicit format: tool_name[parameter]
+    - retrieve_knowledge is MANDATORY before final output (ensures style consistency)
+    - Agent must explore incrementally (not attempt to read entire codebase at once)
+    - Documentation must follow retrieved style guidelines for professional consistency
+
+Usage:
+    This prompt is injected into the agent's initial message in main.py:
+    >>> from prompts import SYSTEM_PROMPT
+    >>> initial_message = HumanMessage(content=f"{SYSTEM_PROMPT}\\n\\nUSER'S TASK: {task_input}")
+
+Customization Notes:
+    - Modify tool descriptions here to change agent's tool selection behavior
+    - Adjust goal ordering to change agent's workflow priorities
+    - Update output format requirements to change final documentation structure
+"""
+
 SYSTEM_PROMPT = """
 You are Klaro, an autonomous AI agent specializing in technical documentation. Your mission is to analyze a given codebase and autonomously generate a comprehensive, high-quality technical README.md file.
 

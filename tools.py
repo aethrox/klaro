@@ -1,13 +1,86 @@
+"""
+Klaro Custom Tools Module
+
+This module provides the core toolset that enables the Klaro agent to interact with codebases,
+analyze code structures, and access knowledge bases. These tools form the agent's capabilities
+for autonomous documentation generation.
+
+Tool Categories:
+    1. **Codebase Exploration**:
+       - list_files: Directory traversal with .gitignore filtering
+       - read_file: File content reading with UTF-8 encoding
+
+    2. **Code Analysis**:
+       - analyze_code: AST-based Python code structure extraction
+       - _extract_docstring: Helper for extracting docstrings from AST nodes
+
+    3. **External Knowledge**:
+       - web_search: External information gathering (simulated)
+       - init_knowledge_base: RAG system initialization with ChromaDB
+       - retrieve_knowledge: Semantic search in vector database
+
+    4. **Support Functions**:
+       - get_gitignore_patterns: Converts .gitignore rules to regex
+       - is_ignored: Checks if path matches ignore patterns
+
+Architecture Patterns:
+    **Agent-Centric Design**: Tools are designed to be called incrementally rather than
+    loading entire codebases at once. This overcomes LLM context window limitations and
+    enables intelligent navigation of large projects.
+
+    **Hybrid Analysis (AST + LLM)**: The analyze_code tool uses a two-stage approach:
+    1. Programmatic extraction via Python's ast module (structure, signatures, types)
+    2. Semantic interpretation by the LLM (purpose, relationships, summaries)
+
+Dependencies:
+    - ast: Python's built-in Abstract Syntax Tree parser
+    - OpenAI Embeddings: text-embedding-3-small model for vector generation
+    - ChromaDB: Local vector database for RAG knowledge base
+    - RecursiveCharacterTextSplitter: Document chunking (1000 chars, 200 overlap)
+
+Global State:
+    - VECTOR_DB_PATH: Location of persisted ChromaDB database (./klaro_db)
+    - KLARO_RETRIEVER: Global VectorStoreRetriever instance (initialized once)
+    - IGNORE_PATTERNS: Compiled regex patterns from hardcoded .gitignore rules
+    - GITIGNORE_CONTENT: Standard Python .gitignore template
+
+Usage Patterns:
+    These tools are wrapped as LangChain Tool objects in main.py:
+    >>> from langchain_core.tools import Tool
+    >>> tools = [
+    ...     Tool(name="list_files", func=list_files, description=list_files.__doc__),
+    ...     Tool(name="analyze_code", func=analyze_code, description=analyze_code.__doc__),
+    ...     # ... other tools
+    ... ]
+
+    The agent calls them via LangGraph's ToolNode based on LLM decisions.
+
+RAG System Flow:
+    1. Initialization (once per run):
+       >>> docs = [Document(page_content=style_guide, metadata={"source": "guide"})]
+       >>> init_knowledge_base(docs)  # Creates ChromaDB at ./klaro_db
+
+    2. Retrieval (multiple times):
+       >>> results = retrieve_knowledge("README style guidelines")
+       # Returns top 3 most relevant chunks from vector store
+
+Technical Notes:
+    - All file operations assume UTF-8 encoding
+    - .gitignore filtering includes common patterns (__pycache__, .git, etc.)
+    - AST analysis only supports Python code (SyntaxError for other languages)
+    - Vector embeddings require OPENAI_API_KEY environment variable
+    - ChromaDB persists to disk (survives restarts)
+"""
+
 import os
 import re
 import ast
 import json
 
-# --- RAG/Vector Database Imports (Aşama 3) ---
-from langchain_openai import OpenAIEmbeddings 
-from langchain_community.vectorstores import Chroma 
-# Doğru paket yoluna yönlendirildi
-from langchain_text_splitters import RecursiveCharacterTextSplitter 
+# --- RAG/Vector Database Imports ---
+from langchain_openai import OpenAIEmbeddings
+from langchain_community.vectorstores import Chroma
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_core.vectorstores import VectorStoreRetriever
 from langchain_core.documents import Document 
 
@@ -203,7 +276,31 @@ cython_debug/
 """
 
 def get_gitignore_patterns(gitignore_content: str) -> list[str]:
-    """Translates simple .gitignore patterns into Regex patterns."""
+    """Translates .gitignore patterns into compiled regex patterns for file filtering.
+
+    This function parses .gitignore syntax and converts common glob patterns
+    (*, **, /, etc.) into Python regular expressions that can be used for
+    path matching during directory traversal.
+
+    Args:
+        gitignore_content (str): Raw content of a .gitignore file, with one
+            pattern per line. Lines starting with # are treated as comments
+            and empty lines are ignored.
+
+    Returns:
+        list[str]: List of regex pattern strings that can be used with re.search()
+            to match file paths. Patterns handle:
+            - Single asterisk (*) -> matches any characters except /
+            - Double asterisk (**) -> matches any characters including /
+            - Trailing slash (/) -> matches directories
+            - Regular paths -> matches files or directories
+
+    Example:
+        >>> patterns = get_gitignore_patterns("*.py\\n__pycache__/\\n")
+        >>> patterns
+        ['(.*/)?\[\^/\]*\\.py$', '(.*/)?__pycache__(/.*)?$']
+        >>> # Use with: re.search(pattern, "path/to/file.py")
+    """
     patterns = []
     for line in gitignore_content.splitlines():
         line = line.strip()
@@ -222,7 +319,29 @@ def get_gitignore_patterns(gitignore_content: str) -> list[str]:
 IGNORE_PATTERNS = get_gitignore_patterns(GITIGNORE_CONTENT)
 
 def is_ignored(path: str) -> bool:
-    """Checks if the given path matches any ignore patterns."""
+    """Checks if a file or directory path should be ignored based on .gitignore rules.
+
+    This function tests the provided path against all compiled .gitignore patterns
+    (from IGNORE_PATTERNS) and explicit project-specific ignores (.git, .env).
+    Used during directory traversal to filter out unwanted files.
+
+    Args:
+        path (str): Relative or absolute file/directory path to check.
+            Backslashes are automatically converted to forward slashes for
+            cross-platform compatibility.
+
+    Returns:
+        bool: True if the path should be ignored (matches a pattern),
+            False if it should be included in directory listings.
+
+    Example:
+        >>> is_ignored("__pycache__/main.cpython-311.pyc")
+        True
+        >>> is_ignored("src/main.py")
+        False
+        >>> is_ignored(".git/config")
+        True
+    """
     path = path.replace('\\', '/')
     for pattern in IGNORE_PATTERNS:
         if re.search(pattern, path):
@@ -237,7 +356,39 @@ def is_ignored(path: str) -> bool:
 # --- CodebaseReaderTool Functions ---
 
 def list_files(directory: str = '.') -> str:
-    """Lists files and folders in the given directory in a tree-like structure. Filters ignored paths."""
+    """Lists files and folders in a directory as a tree structure with .gitignore filtering.
+
+    Recursively traverses the specified directory and generates a hierarchical
+    tree view of files and subdirectories. Automatically filters out paths
+    matching .gitignore patterns (defined in IGNORE_PATTERNS).
+
+    Args:
+        directory (str, optional): Path to the directory to list. Can be relative
+            or absolute. Defaults to '.' (current working directory).
+
+    Returns:
+        str: Multi-line string representation of the directory tree using
+            box-drawing characters (├──, |). Format example:
+            ```
+            / project_name/
+            ├──  .gitignore
+            ├──  README.md
+            ├──  src/
+            |   ├──  main.py
+            ```
+
+    Raises:
+        Returns error message string if directory doesn't exist or is not a directory.
+
+    Example:
+        >>> tree = list_files(".")
+        >>> print(tree)
+        / klaro/
+        ├──  main.py
+        ├──  tools.py
+        ├──  prompts.py
+        ├──  requirements.txt
+    """
     if not os.path.isdir(directory):
         return f"Error: Directory not found or is not a directory: '{directory}'"
 
@@ -278,7 +429,34 @@ def list_files(directory: str = '.') -> str:
 
 
 def read_file(file_path: str) -> str:
-    """Reads and returns the content of the specified file path."""
+    """Reads and returns the complete content of a file with UTF-8 encoding.
+
+    Opens and reads the entire contents of the specified file into a string.
+    Designed for reading source code files as part of codebase analysis.
+
+    Args:
+        file_path (str): Absolute or relative path to the file to read.
+            Must point to a file (not a directory).
+
+    Returns:
+        str: Complete file content as a string, or error message if operation fails.
+            Error messages have format: "Error: <specific issue>"
+
+    Raises:
+        Returns error message string (doesn't raise exceptions) in these cases:
+        - File doesn't exist
+        - Path points to a directory
+        - UTF-8 decoding fails
+        - Permission denied
+
+    Example:
+        >>> content = read_file("main.py")
+        >>> print(content[:50])
+        import os
+        from typing import TypedDict, Annotated
+        >>> read_file("nonexistent.txt")
+        "Error: File path not found or is not a file: 'nonexistent.txt'"
+    """
     if not os.path.exists(file_path):
         return f"Error: File path not found or is not a file: '{file_path}'"
     
@@ -296,7 +474,32 @@ def read_file(file_path: str) -> str:
 # --- CodeAnalyzerTool Function ---
 
 def _extract_docstring(node):
-    """Extracts the docstring from an AST node."""
+    """Extracts the docstring from an AST node (function or class).
+
+    Helper function that inspects the body of an AST node (FunctionDef, AsyncFunctionDef,
+    or ClassDef) and extracts the docstring if present. Follows Python's docstring
+    convention: the first statement must be a string literal expression.
+
+    Args:
+        node: AST node object (typically ast.FunctionDef, ast.AsyncFunctionDef, or
+            ast.ClassDef) that may contain a docstring.
+
+    Returns:
+        str or None: The docstring text if found, None if no docstring exists.
+            Only extracts string constants (ast.Constant nodes with str value).
+
+    Example:
+        >>> import ast
+        >>> code = '''
+        ... def example():
+        ...     \"\"\"This is a docstring.\"\"\"
+        ...     pass
+        ... '''
+        >>> tree = ast.parse(code)
+        >>> func_node = tree.body[0]
+        >>> _extract_docstring(func_node)
+        'This is a docstring.'
+    """
     if not node.body or not isinstance(node.body[0], ast.Expr):
         return None
     if isinstance(node.body[0].value, ast.Constant) and isinstance(node.body[0].value.value, str):
@@ -305,9 +508,56 @@ def _extract_docstring(node):
 
 
 def analyze_code(code_content: str) -> str:
-    """
-    Analyzes Python code content using AST (Abstract Syntax Tree).
-    Extracts classes, functions, parameters, and docstrings, returning the output in JSON format.
+    """Analyzes Python code structure using AST and returns structured JSON data.
+
+    Performs programmatic code analysis by parsing Python source code into an
+    Abstract Syntax Tree (AST) and extracting structured information about
+    classes, functions, methods, parameters, return types, and docstrings.
+
+    This is the core code analysis tool used by the Klaro agent. Unlike LLM-based
+    analysis, AST extraction is deterministic and prevents hallucinations, providing
+    reliable structural data for documentation generation.
+
+    Args:
+        code_content (str): Raw Python source code to analyze. Must be syntactically
+            valid Python code (will be parsed with ast.parse()).
+
+    Returns:
+        str: JSON-formatted string containing analysis results with structure:
+            {
+                "analysis_summary": "High-level summary of file contents",
+                "components": [
+                    {
+                        "type": "function" | "class",
+                        "name": "component_name",
+                        "parameters": ["param1", "param2"],  # for functions
+                        "returns": "return_type",             # for functions
+                        "docstring": "extracted docstring",
+                        "lineno": 42,
+                        "methods": [...]  # for classes only
+                    }
+                ]
+            }
+
+    Raises:
+        Returns JSON error object (doesn't raise exceptions) for:
+        - Empty code_content: {"error": "Code content to analyze is empty."}
+        - SyntaxError: {"error": "Code parsing error (SyntaxError): <details>"}
+        - Other exceptions: {"error": "Unexpected error during code analysis: <details>"}
+
+    Example:
+        >>> code = '''
+        ... def greet(name: str) -> str:
+        ...     \"\"\"Returns a greeting message.\"\"\"
+        ...     return f"Hello, {name}"
+        ... '''
+        >>> result = analyze_code(code)
+        >>> import json
+        >>> data = json.loads(result)
+        >>> data["components"][0]["name"]
+        'greet'
+        >>> data["components"][0]["docstring"]
+        'Returns a greeting message.'
     """
     if not code_content:
         return json.dumps({"error": "Code content to analyze is empty."})
@@ -380,7 +630,37 @@ def analyze_code(code_content: str) -> str:
 # --- WebSearchTool Function ---
 
 def web_search(query: str) -> str:
-    """Performs a web search for the given query (e.g., Google). Used to gather external info or concepts."""
+    """Performs simulated web search to gather external information about libraries and concepts.
+
+    This tool is currently a placeholder that returns hardcoded responses for common
+    queries. Designed to provide the agent with external knowledge about frameworks,
+    libraries, and programming concepts that may not be evident from code analysis alone.
+
+    Args:
+        query (str): Search query string. Typically names of libraries, frameworks,
+            or technical concepts (e.g., "FastAPI", "uvicorn", "ChromaDB").
+
+    Returns:
+        str: Simulated search result as a plain text string. Format:
+            "Search Result: <information about query>"
+
+            Currently supports:
+            - "FastAPI" -> Returns FastAPI description
+            - "uvicorn" -> Returns uvicorn description
+            - Other queries -> Generic placeholder response
+
+    Example:
+        >>> result = web_search("FastAPI")
+        >>> print(result)
+        Search Result: FastAPI is a modern, high-performance Python web framework.
+        >>> result = web_search("unknown library")
+        >>> print(result)
+        Search result found for 'unknown library': (Example Answer: The requested information is here.)
+
+    Note:
+        Future versions should integrate with real search APIs (DuckDuckGo, SerpAPI, etc.)
+        or web scraping for actual external information retrieval.
+    """
     # This is a simulation for the LLM agent
     if "FastAPI" in query:
         return "Search Result: FastAPI is a modern, high-performance Python web framework."
@@ -392,7 +672,49 @@ def web_search(query: str) -> str:
 # --- RAG Tool Functions ---
 
 def init_knowledge_base(documents: list[Document]) -> str:
-    """Initializes and persists Klaro's knowledge base (Vector Database). Must be called once."""
+    """Initializes the RAG knowledge base (ChromaDB) with style guide documents.
+
+    Creates and persists a vector database containing embedded documentation style guides
+    and reference materials. This enables the agent to retrieve relevant style guidelines
+    during documentation generation, ensuring consistency and adherence to standards.
+
+    Must be called once at agent startup before any retrieve_knowledge calls. The database
+    is persisted to disk at VECTOR_DB_PATH (./klaro_db) and survives across runs.
+
+    Args:
+        documents (list[Document]): List of LangChain Document objects to index.
+            Each Document should have:
+            - page_content (str): The actual text content to embed
+            - metadata (dict): Source information and tags
+
+    Returns:
+        str: Success or warning message with format:
+            - Success: "Knowledge base (ChromaDB) successfully initialized at <path>. <n> chunks indexed."
+            - Warning: "Warning: No documents provided for initialization."
+            - Error: "Error initializing knowledge base: <exception details>"
+
+    Raises:
+        Returns error message string (doesn't raise exceptions) if:
+        - OpenAI API key is missing or invalid (embeddings fail)
+        - ChromaDB initialization fails
+        - Document processing encounters errors
+
+    Example:
+        >>> from langchain_core.documents import Document
+        >>> style_guide = Document(
+        ...     page_content="# Style Guide\\n## Format all READMEs with H1, H2 headings...",
+        ...     metadata={"source": "Company_Style_Guide"}
+        ... )
+        >>> result = init_knowledge_base([style_guide])
+        >>> print(result)
+        Knowledge base (ChromaDB) successfully initialized at ./klaro_db. 3 chunks indexed.
+
+    Technical Details:
+        - Uses RecursiveCharacterTextSplitter (chunk_size=1000, overlap=200)
+        - Embeddings: OpenAI text-embedding-3-small model
+        - Vector store: ChromaDB (persisted locally)
+        - Sets global KLARO_RETRIEVER for use by retrieve_knowledge()
+    """
     global KLARO_RETRIEVER
 
     if not documents:
@@ -423,7 +745,59 @@ def init_knowledge_base(documents: list[Document]) -> str:
 
 
 def retrieve_knowledge(query: str) -> str:
-    """Retrieves the most relevant information from the Vector Database (ChromaDB) for a given query (RAG)."""
+    """Retrieves relevant style guide information from the vector database via semantic search.
+
+    Performs RAG (Retrieval-Augmented Generation) by searching the ChromaDB knowledge base
+    for content semantically similar to the query. Used by the agent to fetch documentation
+    standards and style guidelines before generating final output.
+
+    The agent MUST call this tool before producing final documentation to ensure
+    consistency with project style guides (enforced by system prompt).
+
+    Args:
+        query (str): Natural language query describing the information needed.
+            Examples:
+            - "README style guidelines"
+            - "How to format API documentation sections"
+            - "Required sections for technical documentation"
+
+    Returns:
+        str: Formatted string containing top 3 most relevant chunks from the knowledge base.
+            Format:
+            ```
+            Retrieved Information:
+            Source 1: <chunk content>
+            ---
+            Source 2: <chunk content>
+            ---
+            Source 3: <chunk content>
+            ```
+
+            Or error message if knowledge base is not initialized:
+            "Error: Knowledge base not initialized. Please ensure init_knowledge_base was called."
+
+    Raises:
+        Returns error message string (doesn't raise exceptions) if:
+        - KLARO_RETRIEVER is None (init_knowledge_base not called)
+        - Query execution fails
+        - Vector database access error
+
+    Example:
+        >>> result = retrieve_knowledge("README style guidelines")
+        >>> print(result)
+        Retrieved Information:
+        Source 1: # README Format
+        All READMEs must include ## Setup and ## Usage sections...
+        ---
+        Source 2: Use professional technical tone with code examples...
+        ---
+        Source 3: Headings must use # and ## format...
+
+    Technical Details:
+        - Uses global KLARO_RETRIEVER instance (set by init_knowledge_base)
+        - Retrieves k=3 most similar chunks (configured in init_knowledge_base)
+        - Similarity computed via cosine distance on OpenAI embeddings
+    """
     global KLARO_RETRIEVER
 
     if KLARO_RETRIEVER is None:

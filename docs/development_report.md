@@ -1,47 +1,47 @@
-# **Klaro Projesi: Geliştirme Aşamaları Raporu (Güncel Durum)**
+# **Klaro Project: Development Stages Report (Current Status)**
 
-Bu rapor, Klaro projesinin başlangıcından (MVP) en son LangGraph stabilizasyonuna kadar olan tüm ilerlemesini, teknik kazanımlarını ve mimari zorunluluklarını özetlemektedir.
+This report summarizes all progress, technical achievements, and architectural necessities of the Klaro project from its inception (MVP) to the latest LangGraph stabilization.
 
-## **Aşama 1: MVP (Minimum Viable Product) ve Temel Kurulum**
+## **Stage 1: MVP (Minimum Viable Product) and Basic Setup**
 
-**Hedef:** Projenin varlığını kanıtlamak ve temel LLM zincirini kurmak.
+**Goal:** Prove the project's viability and establish the basic LLM chain.
 
-| Kazanım | Açıklama | Teknik Detay |
+| Achievement | Description | Technical Detail |
 | :---- | :---- | :---- |
-| **Ajan Mimarisi** | LLM ile ilk etkileşimi kuran basit bir LangChain Zinciri kullanıldı. | Pasif, önceden tanımlı adımlardan oluşan bir akış. Durum yönetimi yoktu. |
-| **Temel Araçlar** | read\_file gibi basit I/O araçları tasarlandı. | LLM'in bağlam penceresini zorlayan, verimsiz okuma yöntemleri kullanıldı. |
-| **Dil Standardı** | Uluslararası projeye hazırlık olarak **İngilizce dil standardına geçiş** kararı alındı. | Tüm prompt'lar, yorumlar ve ana değişken isimleri İngilizce'ye çevrildi. |
+| **Agent Architecture** | A simple LangChain Chain was used to establish the first interaction with the LLM. | Passive, predefined flow of steps. No state management. |
+| **Basic Tools** | Simple I/O tools like read_file were designed. | Inefficient reading methods that stressed the LLM's context window. |
+| **Language Standard** | Decision made to **transition to English language standard** in preparation for international project. | All prompts, comments, and main variable names translated to English. |
 
-## **Aşama 2: ReAct Ajan Mimarisi ve AST Entegrasyonu**
+## **Stage 2: ReAct Agent Architecture and AST Integration**
 
-**Hedef:** Ajanı otonom kararlar alabilen bir ReAct (Düşünce $\\rightarrow$ Eylem $\\rightarrow$ Gözlem) yapısına taşımak.
+**Goal:** Move the agent to a ReAct (Thought → Action → Observation) structure capable of autonomous decision-making.
 
-| Kazanım | Açıklama | Teknik Detay |
+| Achievement | Description | Technical Detail |
 | :---- | :---- | :---- |
-| **Mimari Geçiş (ReAct)** | LangChain'deki sürekli ImportError sorunları nedeniyle **Saf Python ReAct Döngüsü** uygulandı. | Ajanın mantık döngüsü, harici LangChain bileşenleri yerine main.py içinde parse\_action fonksiyonu ve while döngüsü ile yönetildi. Stabilite sağlandı. |
-| **Özel Araçlar** | list\_files, read\_file, web\_search ve en önemlisi **analyze\_code** (AST tabanlı) eklendi. | tools.py içerisindeki araçlardan @tool dekoratörleri kaldırıldı (Saf ReAct için zorunluluk) ve LLM'e doğrudan çağrılabilir fonksiyonlar olarak sunuldu. |
-| **Kod Analizi Derinliği** | analyze\_code, Python'ın **AST (Abstract Syntax Tree)** kütüphanesini kullanarak kodu yapısal (JSON) verilere dönüştürdü. | LLM, kodun sadece metnini değil, **sınıf/fonksiyon/parametre yapısını** da anlamaya başladı. |
+| **Architecture Transition (ReAct)** | Due to persistent ImportError issues in LangChain, a **Pure Python ReAct Loop** was implemented. | The agent's logic loop was managed within main.py using parse_action function and while loop instead of external LangChain components. Stability achieved. |
+| **Custom Tools** | Added list_files, read_file, web_search, and most importantly **analyze_code** (AST-based). | @tool decorators were removed from tools in tools.py (requirement for Pure ReAct) and presented to LLM as directly callable functions. |
+| **Code Analysis Depth** | analyze_code used Python's **AST (Abstract Syntax Tree)** library to transform code into structural (JSON) data. | LLM began understanding not just the text of code, but **class/function/parameter structure**. |
 
-## **Aşama 3: RAG (Retrieval-Augmented Generation) ve Kalite Artırımı**
+## **Stage 3: RAG (Retrieval-Augmented Generation) and Quality Improvement**
 
-**Hedef:** Dokümantasyon çıktı kalitesini ve tutarlılığını artırmak için harici stil kılavuzlarını kullanmak.
+**Goal:** Use external style guides to improve documentation output quality and consistency.
 
-| Kazanım | Açıklama | Teknik Detay |
+| Achievement | Description | Technical Detail |
 | :---- | :---- | :---- |
-| **RAG Altyapısı Kurulumu** | **ChromaDB** (Vektör Veritabanı) ve **OpenAI Embeddings** entegrasyonu tamamlandı. | init\_knowledge\_base ile DEFAULT\_GUIDE\_CONTENT indekslendi. retrieve\_knowledge aracı eklendi. |
-| **Çıktı Kontrolü** | Ajanın, README yazmadan önce **mutlaka** retrieve\_knowledge aracını kullanması sistem prompt'u ile zorunlu kılındı. | Üretilen README'lerin her seferinde aynı profesyonel formatı (Başlıklar, Bölümler) takip etmesi garanti altına alındı. |
-| **Final Çıktı** | Klaro, hem kod analizi bilgisini hem de zorunlu Stil Kılavuzunu kullanarak yüksek kaliteli README'ler üretti. |  |
+| **RAG Infrastructure Setup** | **ChromaDB** (Vector Database) and **OpenAI Embeddings** integration completed. | DEFAULT_GUIDE_CONTENT indexed with init_knowledge_base. retrieve_knowledge tool added. |
+| **Output Control** | Agent **mandated** via system prompt to use retrieve_knowledge tool before writing README. | Generated READMEs guaranteed to follow the same professional format (Headings, Sections) every time. |
+| **Final Output** | Klaro produced high-quality READMEs using both code analysis knowledge and mandatory Style Guide. |  |
 
-## **Aşama 4: LangGraph Mimarisi (Final Stabilizasyon)**
+## **Stage 4: LangGraph Architecture (Final Stabilization)**
 
-**Hedef:** Saf Python ReAct döngüsünü, hata yönetimi ve akış kontrolü için tasarlanmış **LangGraph** yapısına taşıyarak projeyi üretime hazır hale getirmek.
+**Goal:** Migrate the Pure Python ReAct loop to **LangGraph** designed for error management and flow control to make the project production-ready.
 
-| Hedef | Açıklama | Teknik Detay |
+| Goal | Description | Technical Detail |
 | :---- | :---- | :---- |
-| **Mimari Geçiş (LangGraph)** | Tüm import krizlerine rağmen (LangChain/LangGraph paket uyumsuzlukları), mimari StateGraph yapısına taşındı. | LangGraph'ın AgentState yapısı ile ajanın hafızası (mesajlar, hatalar) yönetildi. |
-| **Stabil Tool Calling** | LangGraph'ın ToolNode ve ToolExecutor yapısı kullanılarak otomatik araç çağırma sistemi kuruldu. | Manuel parse\_action mekanizması kaldırıldı. Ajan, hatalı adımlardan sonra yeniden planlama yeteneği kazandı (decide\_next\_step yönlendiricisi). |
-| **Hata Toleransı** | LangGraph'ın koşullu kenarları (Conditional Edges) sayesinde, ajan başarısız bir araç çağrısından sonra akışı durdurmak yerine durumu analiz edip **yeniden planlama** yeteneği kazandı. |  |
+| **Architecture Transition (LangGraph)** | Despite all import crises (LangChain/LangGraph package incompatibilities), architecture moved to StateGraph structure. | Agent's memory (messages, errors) managed with LangGraph's AgentState structure. |
+| **Stable Tool Calling** | Automatic tool calling system established using LangGraph's ToolNode and ToolExecutor structure. | Manual parse_action mechanism removed. Agent gained ability to replan after failed steps (decide_next_step router). |
+| **Error Tolerance** | Thanks to LangGraph's Conditional Edges, agent gained ability to analyze state and **replan** instead of stopping the flow after a failed tool call. |  |
 
-### **Sonuç ve Proje Vizyonu**
+### **Conclusion and Project Vision**
 
-Klaro projesi, **otonom, analitik ve stil sahibi** dokümantasyon ajanı vizyonuna ulaşmıştır. Proje, en stabil mimarisi üzerinde çalışmakta ve üretime hazırdır.
+The Klaro project has achieved its vision as an **autonomous, analytical, and style-aware** documentation agent. The project is working on its most stable architecture and is production-ready.
