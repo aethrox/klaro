@@ -563,48 +563,74 @@ def analyze_code(code_content: str) -> str:
         return json.dumps({"error": "Code content to analyze is empty."})
 
     components = []
-    
+
+    # --- STEP 1: Parse Python source code into an Abstract Syntax Tree (AST) ---
+    # AST is a tree representation of the syntactic structure of the code
+    # This allows programmatic analysis without executing the code
     try:
         tree = ast.parse(code_content)
     except SyntaxError as e:
+        # Return JSON error if code has syntax errors (invalid Python)
         return json.dumps({"error": f"Code parsing error (SyntaxError): {e}"})
     except Exception as e:
+        # Catch unexpected parsing failures
         return json.dumps({"error": f"Unexpected error during code analysis: {e}"})
 
+    # --- STEP 2: Walk the AST and extract code components ---
+    # ast.walk() performs a depth-first traversal of all nodes in the tree
+    # We're looking for FunctionDef, AsyncFunctionDef, and ClassDef nodes
     for node in ast.walk(tree):
+        # --- CASE 1: Function or Async Function Definition ---
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            # Extract the docstring (first string literal in function body)
             docstring = _extract_docstring(node)
+
+            # Extract parameter names from the function signature
+            # node.args.args is a list of ast.arg objects (each has .arg attribute with param name)
             parameters = [f"{arg.arg}" for arg in node.args.args]
 
-            # Safely extract return type annotation
+            # Extract return type annotation (if present)
+            # node.returns contains the AST node for the return type hint (e.g., "-> str")
+            # ast.unparse() converts AST node back to source code string
             try:
                 return_type = ast.unparse(node.returns).strip() if node.returns else "None"
             except Exception:
+                # If unparsing fails (rare), mark as Unknown
                 return_type = "Unknown"
 
+            # Build the function component dictionary
             components.append({
                 "type": "function",
-                "name": node.name,
-                "parameters": parameters,
-                "returns": return_type,
+                "name": node.name,              # Function name
+                "parameters": parameters,        # List of parameter names
+                "returns": return_type,          # Return type annotation
                 "docstring": docstring if docstring else "None",
-                "lineno": node.lineno
+                "lineno": node.lineno            # Line number where function is defined
             })
-            
+
+        # --- CASE 2: Class Definition ---
         elif isinstance(node, ast.ClassDef):
+            # Extract class-level docstring
             docstring = _extract_docstring(node)
+
+            # Extract all methods from the class body
             methods = []
+            # node.body contains all statements inside the class definition
             for item in node.body:
+                # Only process method definitions (functions inside classes)
                 if isinstance(item, (ast.FunctionDef, ast.AsyncFunctionDef)):
                     method_docstring = _extract_docstring(item)
+
+                    # Extract method parameters (same logic as standalone functions)
                     method_parameters = [f"{arg.arg}" for arg in item.args.args]
 
-                    # Safely extract return type annotation
+                    # Extract method return type annotation
                     try:
                         method_return_type = ast.unparse(item.returns).strip() if item.returns else "None"
                     except Exception:
                         method_return_type = "Unknown"
 
+                    # Build the method dictionary (similar to function, but without lineno)
                     methods.append({
                         "name": item.name,
                         "parameters": method_parameters,
@@ -612,14 +638,17 @@ def analyze_code(code_content: str) -> str:
                         "docstring": method_docstring if method_docstring else "None",
                     })
 
+            # Build the class component dictionary
             components.append({
                 "type": "class",
-                "name": node.name,
+                "name": node.name,               # Class name
                 "docstring": docstring if docstring else "None",
-                "methods": methods,
-                "lineno": node.lineno
+                "methods": methods,              # List of method dictionaries
+                "lineno": node.lineno            # Line number where class is defined
             })
 
+    # --- STEP 3: Generate summary and format results as JSON ---
+    # Count classes and functions for the analysis summary
     result = {
         "analysis_summary": f"This Python file contains {len([c for c in components if c['type'] == 'class'])} classes and {len([c for c in components if c['type'] == 'function'])} functions.",
         "components": components
@@ -715,32 +744,58 @@ def init_knowledge_base(documents: list[Document]) -> str:
         - Vector store: ChromaDB (persisted locally)
         - Sets global KLARO_RETRIEVER for use by retrieve_knowledge()
     """
+    # Access the global retriever variable (will be set after initialization)
     global KLARO_RETRIEVER
 
+    # Validate input: ensure at least one document is provided
     if not documents:
         return "Warning: No documents provided for initialization."
 
     try:
-        # 1. Chunking
+        # --- STEP 1: Document Chunking (Text Splitting) ---
+        # Large documents are split into smaller chunks for better retrieval accuracy
+        # RecursiveCharacterTextSplitter uses semantic boundaries (paragraphs, sentences)
+        # rather than arbitrary character positions
+        #
+        # chunk_size=1000: Maximum characters per chunk (balances context vs. precision)
+        # chunk_overlap=200: Characters shared between consecutive chunks (prevents
+        #                    information loss at boundaries)
         text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
         texts = text_splitter.split_documents(documents)
+        # texts is now a list of Document objects, each with page_content <= 1000 chars
 
-        # 2. Embeddings and Vector Store Creation
+        # --- STEP 2: Generate Embeddings and Create Vector Store ---
+        # Embeddings convert text chunks into high-dimensional vectors (numbers)
+        # that capture semantic meaning. Similar concepts have similar vectors.
+        #
         # This requires the OPENAI_API_KEY environment variable to be set.
+        # Model: text-embedding-3-small (1536 dimensions, cost-effective)
         embeddings = OpenAIEmbeddings(model="text-embedding-3-small")
 
-        # Chroma is used as the local vector store
+        # ChromaDB is a local vector database (stored on disk)
+        # from_documents() performs two operations:
+        # 1. Calls embeddings.embed_documents() to convert all text chunks to vectors
+        # 2. Stores vectors + original text in ChromaDB at VECTOR_DB_PATH
+        #
+        # persist_directory: Database is saved to disk (survives restarts)
         vectorstore = Chroma.from_documents(
-            documents=texts,
-            embedding=embeddings,
-            persist_directory=VECTOR_DB_PATH
+            documents=texts,              # List of Document chunks to embed
+            embedding=embeddings,         # OpenAI embedding function
+            persist_directory=VECTOR_DB_PATH  # Path to ./klaro_db directory
         )
 
-        # 3. Set Retriever Globally
+        # --- STEP 3: Create and Store Global Retriever ---
+        # Convert the vector store into a retriever (search interface)
+        # as_retriever() wraps the vector store with a retrieval API
+        #
+        # search_kwargs={"k": 3}: Return top 3 most similar chunks for each query
+        # Uses cosine similarity to compare query vector with stored vectors
         KLARO_RETRIEVER = vectorstore.as_retriever(search_kwargs={"k": 3})
 
+        # Return success message with statistics
         return f"Knowledge base (ChromaDB) successfully initialized at {VECTOR_DB_PATH}. {len(texts)} chunks indexed."
     except Exception as e:
+        # Catch and return errors (missing API key, ChromaDB failures, etc.)
         return f"Error initializing knowledge base: {e}"
 
 
@@ -798,19 +853,35 @@ def retrieve_knowledge(query: str) -> str:
         - Retrieves k=3 most similar chunks (configured in init_knowledge_base)
         - Similarity computed via cosine distance on OpenAI embeddings
     """
+    # Access the global retriever (must be initialized by init_knowledge_base first)
     global KLARO_RETRIEVER
 
+    # --- VALIDATION: Check if knowledge base has been initialized ---
+    # KLARO_RETRIEVER is None until init_knowledge_base() is called
+    # This ensures the agent follows the correct initialization sequence
     if KLARO_RETRIEVER is None:
         return "Error: Knowledge base not initialized. Please ensure init_knowledge_base was called."
-        
+
     try:
-        # Use the global retriever instance
+        # --- STEP 1: Perform Semantic Search ---
+        # The retriever performs the following operations:
+        # 1. Convert the query string into an embedding vector (using OpenAI embeddings)
+        # 2. Compare query vector with all stored document vectors (cosine similarity)
+        # 3. Return the k=3 most similar document chunks (highest similarity scores)
+        #
+        # invoke() is the standard LangChain retriever interface (replaces get_relevant_documents)
         docs = KLARO_RETRIEVER.invoke(query)
-        
-        # Format the results for the LLM
+        # docs is a list of Document objects, each with .page_content and .metadata
+
+        # --- STEP 2: Format Results for LLM Consumption ---
+        # Convert the list of Document objects into a human-readable string
+        # Each chunk is labeled with a source number for reference
         result_texts = [f"Source {i+1}: {doc.page_content}" for i, doc in enumerate(docs)]
-        
+
+        # Join all chunks with separator for clarity
+        # The LLM will use this information to guide documentation generation
         return "Retrieved Information:\n" + "\n---\n".join(result_texts)
-        
+
     except Exception as e:
+        # Catch errors: query embedding failures, ChromaDB access issues, etc.
         return f"Error retrieving knowledge: {e}"

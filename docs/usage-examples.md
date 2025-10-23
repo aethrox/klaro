@@ -642,6 +642,6 @@ This guide covered:
 - ✅ LangSmith tracing interpretation (6 detailed sections)
 
 For more information, see:
-- [Troubleshooting Guide](./troubleshooting.md)
-- [Configuration Guide](./configuration.md)
+- [Troubleshooting Guide](troubleshooting.md)
+- [Configuration Guide](configuration.md)
 - [Main README](../README.md)

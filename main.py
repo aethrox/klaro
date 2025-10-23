@@ -260,65 +260,101 @@ def decide_next_step(state: AgentState):
         - The return string must match node names defined in the graph
         - END is a special LangGraph constant that terminates execution
     """
+    # Get the most recent message from the conversation history
+    # This is either an AIMessage (LLM response) or ToolMessage (tool result)
     last_message = state["messages"][-1]
 
-    # 1. Check for immediate error from a previous tool execution.
+    # --- ROUTING DECISION TREE (evaluated in priority order) ---
+
+    # 1. ERROR RECOVERY: Check for errors from previous tool execution
+    # The error_log is populated by failed tool calls or LLM invocation errors
     if state.get("error_log"):
-         # If an error occurred, route back to the model for replanning.
+         # Route back to the model so it can see the error and try a different approach
+         # The LLM will receive the error in the next run_model invocation
          return "run_model"
 
-    # 2. Check for Final Answer (Agent has completed the task).
+    # 2. COMPLETION CHECK: Detect if the agent has finished the task
+    # The system prompt instructs the LLM to output "Final Answer: [content]" when done
+    # This is the termination condition for the ReAct loop
     if last_message.content and "Final Answer" in last_message.content:
+        # END is a special LangGraph marker that terminates the workflow
+        # The final state will be returned to the caller
         return END  # Terminate the graph.
 
-    # 3. Check for Tool Call (The LLM requesting to use a tool).
+    # 3. TOOL EXECUTION: Check if LLM wants to call a tool
+    # When LLM decides to use a tool, it populates last_message.tool_calls
+    # tool_calls is a list of dictionaries with: {name: "tool_name", args: {...}}
     if last_message.tool_calls:
+        # Route to call_tool node, which will execute the requested tools
+        # After execution, ToolMessages will be appended to conversation history
         return "call_tool"
 
-    # 4. If none of the above, loop back to the model for the next thought step.
+    # 4. CONTINUE REASONING: If no action decided yet, keep the ReAct loop going
+    # This happens when the LLM outputs a "Thought:" step without taking action
+    # Loop back to run_model to let the LLM continue its reasoning process
     return "run_model" 
 
 # --- 6. LangGraph Setup ---
 
 # Initialize the StateGraph with our AgentState schema
 # This creates a stateful workflow where each node receives and updates the shared state
+# AgentState defines the shape of data that flows through the graph (messages, error_log)
 workflow = StateGraph(AgentState)
 
-# Add Nodes (the "verbs" - what the graph can do)
+# --- Add Nodes (the "verbs" - what the graph can do) ---
+# Nodes are the processing units of the graph - they take state, transform it, and return updates
+
 # Node 1: run_model - LLM invocation for reasoning and decision-making
+# This is the "thinking" node where the AI decides what to do next
 workflow.add_node("run_model", run_model)
 
 # Node 2: call_tool - Tool execution handler
-# ToolNode is a LangGraph built-in that automatically:
-# 1. Parses tool_calls from the last AIMessage
-# 2. Executes the requested tools with provided arguments
-# 3. Returns ToolMessage results to append to conversation history
+# ToolNode is a LangGraph built-in that automatically handles tool execution:
+# 1. Parses tool_calls from the last AIMessage (extracts tool names and arguments)
+# 2. Executes the requested tools with provided arguments (calls the actual Python functions)
+# 3. Returns ToolMessage results to append to conversation history (the "Observation" in ReAct)
 workflow.add_node("call_tool", ToolNode(tools))
 
-# Set Entry Point (where execution begins)
-# All workflows start at run_model with the initial HumanMessage
+# --- Set Entry Point (where execution begins) ---
+# Entry point defines the first node to execute when app.invoke() is called
+# All workflows start at run_model with the initial HumanMessage containing the task
 workflow.set_entry_point("run_model")
 
-# Add Conditional Edges (the "grammar" - how nodes connect)
-# After run_model executes, decide_next_step determines the next node
+# --- Add Conditional Edges (dynamic routing based on state) ---
+# Conditional edges use a router function to determine the next node at runtime
+# This enables the ReAct loop: Thought → Action decision → Tool execution → Observation → repeat
+
+# After run_model executes, decide_next_step() analyzes the state and determines next action
 workflow.add_conditional_edges(
-    "run_model",  # Source node: start from here
-    decide_next_step,  # Router function: calls this to decide next node
+    "run_model",  # Source node: evaluate routing after this node completes
+    decide_next_step,  # Router function: called with current state, returns next node name
     {
-        # Mapping of router return values to target nodes:
-        "call_tool": "call_tool",  # If router returns "call_tool", go to call_tool node
-        END: END,  # If router returns END, terminate the graph
-        "run_model": "run_model"  # If router returns "run_model", loop back (continue thinking)
+        # Edge mapping: router return value → target node
+        # This dictionary defines all possible transitions from run_model
+
+        "call_tool": "call_tool",  # If router returns "call_tool", transition to call_tool node
+                                    # (LLM decided to use a tool)
+
+        END: END,  # If router returns END, terminate the graph and return final state
+                   # (LLM produced "Final Answer")
+
+        "run_model": "run_model"  # If router returns "run_model", loop back (self-edge)
+                                  # (LLM is still thinking, or there was an error to replan)
     }
 )
 
-# Add Fixed Edge (unconditional transition)
-# After tool execution, ALWAYS return to the model to process the Observation (ToolMessage).
-# This ensures the LLM sees tool results before deciding the next action.
+# --- Add Fixed Edge (unconditional transition) ---
+# Fixed edges always go to the same target node, regardless of state
+# After tool execution completes, ALWAYS return to run_model to process the tool results
+# This ensures the LLM sees the "Observation" (ToolMessage) before deciding the next action
+# This is critical for the ReAct loop: Action → Observation → Thought
 workflow.add_edge("call_tool", "run_model")
 
-# Compile the graph into an executable application
-# This validates the graph structure and creates the runnable app
+# --- Compile the graph into an executable application ---
+# Compilation performs several tasks:
+# 1. Validates graph structure (checks for unreachable nodes, invalid edges)
+# 2. Creates the execution engine (manages state transitions and node invocations)
+# 3. Returns a runnable app that can be invoked with app.invoke(initial_state)
 app = workflow.compile()
 
 # --- 7. Execution Function ---

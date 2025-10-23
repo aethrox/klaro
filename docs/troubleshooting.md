@@ -1021,6 +1021,6 @@ If you encounter an error not listed here:
 
 ## Related Documentation
 
-- [Configuration Guide](./configuration.md) - Detailed configuration options
-- [Usage Examples](./usage_examples.md) - Real-world usage scenarios
+- [Configuration Guide](configuration.md) - Detailed configuration options
+- [Usage Examples](usage-examples.md) - Real-world usage scenarios
 - [Main README](../README.md) - Project overview and quick start

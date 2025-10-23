@@ -1071,8 +1071,8 @@ This configuration guide covered:
 
 ## Related Documentation
 
-- [Usage Examples](./usage_examples.md) - Real-world usage scenarios
-- [Troubleshooting Guide](./troubleshooting.md) - Common issues and solutions
+- [Usage Examples](usage-examples.md) - Real-world usage scenarios
+- [Troubleshooting Guide](troubleshooting.md) - Common issues and solutions
 - [Main README](../README.md) - Project overview and quick start
 
 ---

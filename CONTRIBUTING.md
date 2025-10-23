@@ -103,7 +103,7 @@ python main.py
 
 ## Code Style Guidelines
 
-Klaro follows **PEP 8** standards with some project-specific conventions. For detailed style guidelines, see [docs/CODE_STYLE.md](docs/CODE_STYLE.md).
+Klaro follows **PEP 8** standards with some project-specific conventions. For detailed style guidelines, see [docs/code-style.md](docs/code-style.md).
 
 ### Quick Reference
 
@@ -368,7 +368,7 @@ pytest tests/ -m "not rag"      # Skip RAG tests (avoid API calls)
 - Mock external API calls (LLM, embeddings)
 - Clean up resources in test teardown
 
-For detailed testing guidelines, see [docs/TESTING.md](docs/TESTING.md).
+For detailed testing guidelines, see [docs/testing.md](docs/testing.md).
 
 ---
 
@@ -585,10 +585,10 @@ git rebase main
 
 ## Additional Resources
 
-- **Development Guide**: [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md)
-- **Code Style Guide**: [docs/CODE_STYLE.md](docs/CODE_STYLE.md)
-- **Testing Guide**: [docs/TESTING.md](docs/TESTING.md)
-- **Architecture Documentation**: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
+- **Development Guide**: [docs/development.md](docs/development.md)
+- **Code Style Guide**: [docs/code-style.md](docs/code-style.md)
+- **Testing Guide**: [docs/testing.md](docs/testing.md)
+- **Architecture Documentation**: [docs/architecture.md](docs/architecture.md)
 
 ---
 
