@@ -135,20 +135,52 @@ LLM_MODEL = "gpt-4o-mini"  # Change to "gpt-4o" or other supported model
 
 ## 🚀 Usage
 
-Run Klaro on your project directory:
-
+### Basic Usage
+Run the agent on current directory:
 ```bash
 python main.py
 ```
 
+### Analyze Specific Project
+```bash
+python main.py /path/to/project
+```
+
+### Programmatic Usage
+```python
+from main import run_klaro_langgraph
+
+result = run_klaro_langgraph(project_path="./my_project")
+```
+
+### Output
+The agent generates and displays:
+- Project overview
+- Technology stack analysis
+- Generated README.md content
+- File structure documentation
+
+Output is printed to terminal. To save to file:
+```bash
+python main.py > output.txt
+```
+
+### Quick Start Example
+```bash
+# Analyze Klaro itself
+python main.py .
+
+# Analyze another project
+python main.py ../another-project
+```
+
+### How It Works
 The agent will:
 1. Explore the project structure using `list_files`
 2. Read critical files (main.py, requirements.txt, etc.)
 3. Analyze Python code using AST
 4. Retrieve style guidelines from the knowledge base
 5. Generate comprehensive README documentation
-
-The generated documentation will be printed to stdout.
 
 ## License
 This project is licensed under the MIT License - see the [LICENSE](./LICENSE) file for details.
