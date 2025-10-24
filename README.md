@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="assets/logo_transparent.png" alt="Klaro Logo" width="150"/>
+  <img src="assets/logo_transparent.png" alt="Klaro Logo" width="200"/>
   <h1>Klaro</h1>
   <strong>From Code to Clarity. Instantly.</strong>
 </div>
