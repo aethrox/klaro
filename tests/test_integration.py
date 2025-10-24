@@ -37,7 +37,7 @@ from unittest.mock import Mock, MagicMock, patch
 from langchain_core.messages import HumanMessage, AIMessage, ToolMessage
 from langchain_core.documents import Document
 
-from main import run_klaro_langgraph, app
+from main import run_klaro_langgraph
 from tools import list_files, read_file, analyze_code, retrieve_knowledge
 
 
@@ -132,9 +132,11 @@ python main.py
 """
             )
 
-    with patch('main.model') as mock_model:
-        mock_model.invoke = mock_invoke
+    # Create mock model with the invoke behavior
+    mock_model = MagicMock()
+    mock_model.invoke = mock_invoke
 
+    with patch('main.create_model', return_value=mock_model):
         with patch('main.init_knowledge_base', return_value="Initialized"):
             with patch('builtins.print'):
                 # Run agent
@@ -174,9 +176,11 @@ python main.py
 """
         )
 
-    with patch('main.model') as mock_model:
-        mock_model.invoke = mock_invoke_with_final_answer
+    # Create mock model
+    mock_model = MagicMock()
+    mock_model.invoke = mock_invoke_with_final_answer
 
+    with patch('main.create_model', return_value=mock_model):
         with patch('main.init_knowledge_base', return_value="Initialized"):
             with patch('builtins.print') as mock_print:
                 run_klaro_langgraph(project_path=".")
@@ -235,9 +239,11 @@ def test_error_handling_and_recovery(mock_env_vars):
                 content="Final Answer: # Project\n\n## Setup\nInstall dependencies."
             )
 
-    with patch('main.model') as mock_model:
-        mock_model.invoke = mock_invoke_with_error_recovery
+    # Create mock model
+    mock_model = MagicMock()
+    mock_model.invoke = mock_invoke_with_error_recovery
 
+    with patch('main.create_model', return_value=mock_model):
         with patch('main.init_knowledge_base', return_value="Initialized"):
             with patch('builtins.print'):
                 run_klaro_langgraph(project_path=".")
@@ -342,9 +348,11 @@ def test_agent_uses_all_required_tools(mock_env_vars):
         else:
             return AIMessage(content="Final Answer: # README\n\n## Setup\nDone.")
 
-    with patch('main.model') as mock_model:
-        mock_model.invoke = track_tool_calls
+    # Create mock model
+    mock_model = MagicMock()
+    mock_model.invoke = track_tool_calls
 
+    with patch('main.create_model', return_value=mock_model):
         with patch('main.init_knowledge_base', return_value="Initialized"):
             with patch('builtins.print'):
                 run_klaro_langgraph(project_path=".")
@@ -370,9 +378,11 @@ def test_agent_respects_recursion_limit(mock_env_vars):
             tool_calls=[{"name": "list_files", "args": {"directory": "."}, "id": f"call_{call_count[0]}"}]
         )
 
-    with patch('main.model') as mock_model:
-        mock_model.invoke = infinite_loop_mock
+    # Create mock model
+    mock_model = MagicMock()
+    mock_model.invoke = infinite_loop_mock
 
+    with patch('main.create_model', return_value=mock_model):
         with patch('main.init_knowledge_base', return_value="Initialized"):
             with patch('builtins.print'):
                 # Should raise exception or terminate due to recursion limit
@@ -417,9 +427,11 @@ Key files:
 """
         )
 
-    with patch('main.model') as mock_model:
-        mock_model.invoke = mock_final_answer
+    # Create mock model
+    mock_model = MagicMock()
+    mock_model.invoke = mock_final_answer
 
+    with patch('main.create_model', return_value=mock_model):
         with patch('main.init_knowledge_base', return_value="Initialized"):
             with patch('builtins.print') as mock_print:
                 run_klaro_langgraph(project_path=".")
@@ -489,9 +501,11 @@ Add files to get started.
                 tool_calls=[{"name": "list_files", "args": {"directory": temp_dir}, "id": "c1"}]
             )
 
-    with patch('main.model') as mock_model:
-        mock_model.invoke = mock_empty_project
+    # Create mock model
+    mock_model = MagicMock()
+    mock_model.invoke = mock_empty_project
 
+    with patch('main.create_model', return_value=mock_model):
         with patch('main.init_knowledge_base', return_value="Initialized"):
             with patch('builtins.print') as mock_print:
                 run_klaro_langgraph(project_path=temp_dir)
@@ -541,9 +555,11 @@ def test_agent_completes_within_reasonable_iterations(mock_env_vars):
             else:
                 return AIMessage(content="Final Answer: # README\n\n## Setup\nDone.")
 
-    with patch('main.model') as mock_model:
-        mock_model.invoke = count_calls
+    # Create mock model
+    mock_model = MagicMock()
+    mock_model.invoke = count_calls
 
+    with patch('main.create_model', return_value=mock_model):
         with patch('main.init_knowledge_base', return_value="Initialized"):
             with patch('builtins.print'):
                 run_klaro_langgraph(project_path=".")

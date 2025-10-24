@@ -70,20 +70,44 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from prompts import SYSTEM_PROMPT
-from tools import list_files, read_file, analyze_code, web_search, init_knowledge_base, retrieve_knowledge 
+from tools import (
+    list_files, read_file, analyze_code, web_search,
+    init_knowledge_base, retrieve_knowledge,
+    analyze_project_size, select_model_by_project_size
+)
 
 # --- 1. Configuration ---
-# Model Selection: gpt-4o chosen for high-quality, accurate outputs
-# Provides better accuracy compared to gpt-4o-mini
-LLM_MODEL = "gpt-4o"
+# Model Selection Thresholds: Configure project size-based model selection
+# These thresholds determine which LLM model to use based on project complexity
+MODEL_SELECTION_THRESHOLDS = {
+    'small': {
+        'max_lines': 10000,
+        'model': os.getenv('KLARO_SMALL_MODEL', 'gpt-4o-mini'),
+        'description': 'Fast and cost-effective for small projects'
+    },
+    'medium': {
+        'max_lines': 100000,
+        'model': os.getenv('KLARO_MEDIUM_MODEL', 'gpt-4o'),
+        'description': 'Balanced performance for medium projects'
+    },
+    'large': {
+        'max_lines': float('inf'),
+        'model': os.getenv('KLARO_LARGE_MODEL', 'gpt-4-turbo'),
+        'description': 'Maximum capability for large projects'
+    }
+}
+
+# Default Model: Used as fallback if auto-selection is disabled
+# Can be overridden via KLARO_DEFAULT_MODEL environment variable
+LLM_MODEL = os.getenv('KLARO_DEFAULT_MODEL', "gpt-4o")
 
 # Recursion Limit: Maximum number of agent iterations before forced termination
 # Prevents infinite loops while allowing thorough analysis (default: 50)
 RECURSION_LIMIT = int(os.getenv("KLARO_RECURSION_LIMIT", "50"))
 
-# Temperature: 0.2 for more deterministic, consistent outputs
-# Lower temperature reduces creativity but improves reliability for documentation
-llm = ChatOpenAI(model=LLM_MODEL, temperature=0.2)
+# Auto Model Selection: Enable/disable automatic model selection based on project size
+# Set KLARO_AUTO_MODEL_SELECTION=false to use fixed LLM_MODEL
+AUTO_MODEL_SELECTION = os.getenv('KLARO_AUTO_MODEL_SELECTION', 'true').lower() == 'true'
 
 # --- 2. Tool Setup (LLM Binding) ---
 
@@ -97,9 +121,6 @@ tools = [
     Tool(name="web_search", func=web_search, description=web_search.__doc__),
     Tool(name="retrieve_knowledge", func=retrieve_knowledge, description=retrieve_knowledge.__doc__),
 ]
-
-# Bind the tools to the LLM model to enable Tool Calling functionality.
-model = llm.bind_tools(tools)
 
 # --- 3. LangGraph State Definition ---
 
@@ -153,6 +174,24 @@ class AgentState(TypedDict):
     error_log: str 
 
 # --- 4. LangGraph Nodes ---
+
+def create_model(selected_model: str, temperature: float = 0.2):
+    """Creates and configures an LLM instance with tool bindings.
+
+    Args:
+        selected_model (str): OpenAI model name (e.g., 'gpt-4o', 'gpt-4o-mini')
+        temperature (float): Sampling temperature for model outputs
+
+    Returns:
+        ChatOpenAI: Configured LLM instance bound with tools
+    """
+    llm = ChatOpenAI(model=selected_model, temperature=temperature)
+    return llm.bind_tools(tools)
+
+
+# Global model variable (will be set in run_klaro_langgraph)
+model = None
+
 
 def run_model(state: AgentState):
     """LangGraph node that invokes the LLM for reasoning and decision-making.
@@ -350,12 +389,8 @@ workflow.add_conditional_edges(
 # This is critical for the ReAct loop: Action → Observation → Thought
 workflow.add_edge("call_tool", "run_model")
 
-# --- Compile the graph into an executable application ---
-# Compilation performs several tasks:
-# 1. Validates graph structure (checks for unreachable nodes, invalid edges)
-# 2. Creates the execution engine (manages state transitions and node invocations)
-# 3. Returns a runnable app that can be invoked with app.invoke(initial_state)
-app = workflow.compile()
+# --- Graph compilation is now done in run_klaro_langgraph after model selection ---
+# This allows dynamic model selection based on project size
 
 # --- 7. Execution Function ---
 
@@ -372,10 +407,11 @@ def run_klaro_langgraph(project_path: str = "."):
     """Executes the Klaro autonomous documentation agent on the specified project.
 
     This is the main entry point that:
-    1. Initializes the RAG knowledge base with style guide
-    2. Configures the agent task (README generation)
-    3. Runs the LangGraph workflow until completion or recursion limit
-    4. Extracts and displays the final documentation output
+    1. Analyzes project size and selects optimal LLM model
+    2. Initializes the RAG knowledge base with style guide
+    3. Configures the agent task (README generation)
+    4. Runs the LangGraph workflow until completion or recursion limit
+    5. Extracts and displays the final documentation output
 
     The agent autonomously navigates the codebase using ReAct loop:
     - Explores file structure with list_files
@@ -399,24 +435,31 @@ def run_klaro_langgraph(project_path: str = "."):
         - Tool execution errors
 
     Execution Flow:
-        1. **RAG Initialization**: Creates ChromaDB with DEFAULT_GUIDE_CONTENT
+        1. **Project Analysis**: Analyzes project size and complexity
+           Selects optimal model based on total lines of code
+
+        2. **RAG Initialization**: Creates ChromaDB with DEFAULT_GUIDE_CONTENT
            Prints: "📢 Initializing RAG Knowledge Base..."
 
-        2. **Task Setup**: Combines SYSTEM_PROMPT with user task instruction
+        3. **Task Setup**: Combines SYSTEM_PROMPT with user task instruction
            Task includes explicit tool usage order and retrieve_knowledge requirement
 
-        3. **Graph Execution**: Runs app.invoke() with initial state
+        4. **Graph Execution**: Runs app.invoke() with initial state
            Max iterations controlled by RECURSION_LIMIT env var
 
-        4. **Output Extraction**: Extracts last message content, strips "Final Answer:" prefix
+        5. **Output Extraction**: Extracts last message content, strips "Final Answer:" prefix
            Prints: "✅ TASK SUCCESS: LangGraph Agent Finished."
 
-        5. **Error Handling**: Catches and displays exceptions
+        6. **Error Handling**: Catches and displays exceptions
            Prints: "❌ ERROR: LangGraph execution failed."
 
     Example Usage:
         >>> run_klaro_langgraph("./my_project")
-        --- Launching Klaro LangGraph Agent (Stage 4 - gpt-4o) ---
+        --- Launching Klaro LangGraph Agent ---
+        📊 Analyzing project size...
+           -> Project metrics: 4,523 lines across 15 files
+           -> Complexity: small
+           -> Selected model: gpt-4o-mini
         📢 Initializing RAG Knowledge Base...
            -> Setup Result: Knowledge base (ChromaDB) successfully initialized at ./klaro_db. 3 chunks indexed.
         ==================================================
@@ -430,14 +473,44 @@ def run_klaro_langgraph(project_path: str = "."):
         ...
 
     Technical Notes:
+        - Model selection can be disabled via KLARO_AUTO_MODEL_SELECTION=false
         - DEFAULT_GUIDE_CONTENT is embedded in this file (not imported from tools.py)
         - System prompt and task are combined into single HumanMessage
         - Final output stripped of "Final Answer:" prefix for clean markdown
         - Recursion limit prevents infinite loops (default 50 iterations)
     """
-    print(f"--- Launching Klaro LangGraph Agent (Stage 4 - {LLM_MODEL}) ---")
-    
-    # --- STAGE 3 INTEGRATION: Knowledge Base Setup (RAG) ---
+    global model  # Use global model variable for run_model function
+
+    print("--- Launching Klaro LangGraph Agent ---")
+
+    # --- STEP 1: Project Size Analysis and Model Selection ---
+    if AUTO_MODEL_SELECTION:
+        print("📊 Analyzing project size...")
+        metrics = analyze_project_size(project_path)
+
+        if 'error' in metrics:
+            print(f"   ⚠️  Warning: {metrics['error']}")
+            print(f"   -> Using default model: {LLM_MODEL}")
+            selected_model = LLM_MODEL
+        else:
+            selected_model = select_model_by_project_size(metrics)
+            print(f"   -> Project metrics: {metrics['total_lines']:,} lines across {metrics['total_files']} files")
+            print(f"   -> Complexity: {metrics['complexity']}")
+            print(f"   -> Selected model: {selected_model}")
+    else:
+        selected_model = LLM_MODEL
+        print(f"📌 Auto model selection disabled. Using: {selected_model}")
+
+    # --- STEP 2: Create model with selected configuration ---
+    model = create_model(selected_model, temperature=0.2)
+
+    # --- STEP 3: Compile the workflow graph ---
+    # Must be done after model is set, as run_model depends on it
+    app = workflow.compile()
+
+    print(f"🚀 Starting agent with model: {selected_model}")
+
+    # --- STEP 4: Knowledge Base Setup (RAG) ---
     print("📢 Initializing RAG Knowledge Base...")
     documents_to_index = [
         Document(page_content=DEFAULT_GUIDE_CONTENT, metadata={"source": "Klaro_Style_Guide"}),

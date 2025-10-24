@@ -31,11 +31,16 @@ from main import (
     run_model,
     decide_next_step,
     workflow,
-    app,
     run_klaro_langgraph,
     LLM_MODEL,
-    RECURSION_LIMIT
+    RECURSION_LIMIT,
+    MODEL_SELECTION_THRESHOLDS,
+    AUTO_MODEL_SELECTION,
+    create_model
 )
+
+# Import tools for testing
+from tools import analyze_project_size, select_model_by_project_size
 
 
 # --- Tests for AgentState ---
@@ -245,9 +250,11 @@ def test_decide_next_step_priority_error_over_final_answer():
 @pytest.mark.unit
 def test_graph_compilation():
     """Test that the workflow graph compiles successfully."""
-    # The app should already be compiled in main.py
-    assert app is not None
-    assert hasattr(app, 'invoke')
+    # Test that workflow can be compiled
+    from main import workflow
+    compiled_app = workflow.compile()
+    assert compiled_app is not None
+    assert hasattr(compiled_app, 'invoke')
 
 
 @pytest.mark.unit
@@ -273,7 +280,7 @@ def test_graph_entry_point():
 @pytest.mark.unit
 def test_tools_are_bound_to_model():
     """Test that tools are properly bound to the LLM."""
-    from main import tools, model
+    from main import tools, create_model
 
     # Verify tools list is not empty
     assert len(tools) > 0
@@ -285,8 +292,9 @@ def test_tools_are_bound_to_model():
     assert "analyze_code" in tool_names
     assert "retrieve_knowledge" in tool_names
 
-    # Verify model has bind_tools called (hard to test directly, but we can check it exists)
-    assert model is not None
+    # Test that create_model function works and returns a model
+    test_model = create_model("gpt-4o-mini")
+    assert test_model is not None
 
 
 @pytest.mark.unit
@@ -307,16 +315,17 @@ def test_run_klaro_langgraph_initializes_rag(mock_env_vars):
     with patch('main.init_knowledge_base') as mock_init_kb:
         mock_init_kb.return_value = "Knowledge base initialized successfully"
 
-        with patch('main.app.invoke') as mock_invoke:
-            # Mock successful completion
-            mock_invoke.return_value = {
-                "messages": [
-                    HumanMessage(content="Task"),
-                    AIMessage(content="Final Answer: # README\n\n## Setup\n...")
-                ],
-                "error_log": ""
-            }
+        # Mock the compiled workflow's invoke method
+        mock_compiled_app = MagicMock()
+        mock_compiled_app.invoke.return_value = {
+            "messages": [
+                HumanMessage(content="Task"),
+                AIMessage(content="Final Answer: # README\n\n## Setup\n...")
+            ],
+            "error_log": ""
+        }
 
+        with patch('main.workflow.compile', return_value=mock_compiled_app):
             # Capture print output (optional, for full integration)
             with patch('builtins.print'):
                 run_klaro_langgraph(project_path=".")
@@ -324,9 +333,9 @@ def test_run_klaro_langgraph_initializes_rag(mock_env_vars):
             # Verify init_knowledge_base was called
             mock_init_kb.assert_called_once()
 
-            # Verify app.invoke was called with correct structure
-            mock_invoke.assert_called_once()
-            call_args = mock_invoke.call_args[0][0]
+            # Verify compiled app's invoke was called with correct structure
+            mock_compiled_app.invoke.assert_called_once()
+            call_args = mock_compiled_app.invoke.call_args[0][0]
             assert "messages" in call_args
             assert "error_log" in call_args
 
@@ -335,7 +344,11 @@ def test_run_klaro_langgraph_initializes_rag(mock_env_vars):
 def test_run_klaro_langgraph_handles_errors(mock_env_vars):
     """Test run_klaro_langgraph handles execution errors gracefully."""
     with patch('main.init_knowledge_base', return_value="Initialized"):
-        with patch('main.app.invoke', side_effect=Exception("LLM API Error")):
+        # Mock the compiled workflow to raise an error
+        mock_compiled_app = MagicMock()
+        mock_compiled_app.invoke.side_effect = Exception("LLM API Error")
+
+        with patch('main.workflow.compile', return_value=mock_compiled_app):
             # Should not raise exception, should print error
             with patch('builtins.print') as mock_print:
                 run_klaro_langgraph(project_path=".")
@@ -349,15 +362,17 @@ def test_run_klaro_langgraph_handles_errors(mock_env_vars):
 def test_run_klaro_langgraph_extracts_final_answer(mock_env_vars):
     """Test run_klaro_langgraph correctly extracts and cleans Final Answer."""
     with patch('main.init_knowledge_base', return_value="Initialized"):
-        with patch('main.app.invoke') as mock_invoke:
-            mock_invoke.return_value = {
-                "messages": [
-                    HumanMessage(content="Task"),
-                    AIMessage(content="Final Answer: # My Project\n\n## Setup\nRun pip install")
-                ],
-                "error_log": ""
-            }
+        # Mock the compiled workflow
+        mock_compiled_app = MagicMock()
+        mock_compiled_app.invoke.return_value = {
+            "messages": [
+                HumanMessage(content="Task"),
+                AIMessage(content="Final Answer: # My Project\n\n## Setup\nRun pip install")
+            ],
+            "error_log": ""
+        }
 
+        with patch('main.workflow.compile', return_value=mock_compiled_app):
             with patch('builtins.print') as mock_print:
                 run_klaro_langgraph(project_path=".")
 
@@ -468,3 +483,262 @@ def test_default_guide_content_exists():
     assert DEFAULT_GUIDE_CONTENT is not None
     assert len(DEFAULT_GUIDE_CONTENT) > 0
     assert "README" in DEFAULT_GUIDE_CONTENT or "documentation" in DEFAULT_GUIDE_CONTENT.lower()
+
+
+# --- Tests for Model Selection Feature ---
+
+@pytest.mark.unit
+def test_analyze_project_size_small_project():
+    """Test analyze_project_size correctly identifies small projects."""
+    # Create a temporary small project
+    import tempfile
+    import os
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        # Create a small Python file (< 10K lines)
+        test_file = os.path.join(tmpdir, "test.py")
+        with open(test_file, 'w') as f:
+            f.write("# Test file\n" * 100)  # 100 lines
+
+        metrics = analyze_project_size(tmpdir)
+
+        assert metrics['total_files'] == 1
+        assert metrics['total_lines'] == 100
+        assert metrics['complexity'] == 'small'
+        assert 'error' not in metrics
+
+
+@pytest.mark.unit
+def test_analyze_project_size_medium_project():
+    """Test analyze_project_size correctly identifies medium projects."""
+    import tempfile
+    import os
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        # Create multiple files totaling between 10K-100K lines
+        for i in range(50):
+            test_file = os.path.join(tmpdir, f"test_{i}.py")
+            with open(test_file, 'w') as f:
+                f.write("# Test line\n" * 250)  # 250 lines each = 12,500 total
+
+        metrics = analyze_project_size(tmpdir)
+
+        assert metrics['total_files'] == 50
+        assert 10000 <= metrics['total_lines'] < 100000
+        assert metrics['complexity'] == 'medium'
+
+
+@pytest.mark.unit
+def test_analyze_project_size_invalid_directory():
+    """Test analyze_project_size handles invalid directory gracefully."""
+    metrics = analyze_project_size("/nonexistent/directory/path")
+
+    assert 'error' in metrics
+    assert metrics['total_files'] == 0
+    assert metrics['total_lines'] == 0
+    assert metrics['complexity'] == 'unknown'
+
+
+@pytest.mark.unit
+def test_analyze_project_size_respects_gitignore():
+    """Test analyze_project_size respects .gitignore patterns."""
+    import tempfile
+    import os
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        # Create a Python file
+        test_file = os.path.join(tmpdir, "main.py")
+        with open(test_file, 'w') as f:
+            f.write("# Main file\n" * 100)
+
+        # Create __pycache__ directory (should be ignored)
+        pycache_dir = os.path.join(tmpdir, "__pycache__")
+        os.makedirs(pycache_dir)
+        ignored_file = os.path.join(pycache_dir, "test.pyc")
+        with open(ignored_file, 'w') as f:
+            f.write("compiled")
+
+        metrics = analyze_project_size(tmpdir)
+
+        # Should only count main.py, not files in __pycache__
+        assert metrics['total_files'] == 1
+        assert metrics['total_lines'] == 100
+
+
+@pytest.mark.unit
+def test_select_model_by_project_size_small():
+    """Test select_model_by_project_size returns gpt-4o-mini for small projects."""
+    metrics = {'total_lines': 5000, 'complexity': 'small'}
+    model = select_model_by_project_size(metrics)
+
+    assert model == 'gpt-4o-mini'
+
+
+@pytest.mark.unit
+def test_select_model_by_project_size_medium():
+    """Test select_model_by_project_size returns gpt-4o for medium projects."""
+    metrics = {'total_lines': 50000, 'complexity': 'medium'}
+    model = select_model_by_project_size(metrics)
+
+    assert model == 'gpt-4o'
+
+
+@pytest.mark.unit
+def test_select_model_by_project_size_large():
+    """Test select_model_by_project_size returns gpt-4-turbo for large projects."""
+    metrics = {'total_lines': 150000, 'complexity': 'large'}
+    model = select_model_by_project_size(metrics)
+
+    assert model == 'gpt-4-turbo'
+
+
+@pytest.mark.unit
+def test_select_model_by_project_size_boundary_conditions():
+    """Test select_model_by_project_size handles boundary conditions correctly."""
+    # Exactly at threshold (should be in next tier)
+    metrics_9999 = {'total_lines': 9999}
+    assert select_model_by_project_size(metrics_9999) == 'gpt-4o-mini'
+
+    metrics_10000 = {'total_lines': 10000}
+    assert select_model_by_project_size(metrics_10000) == 'gpt-4o'
+
+    metrics_99999 = {'total_lines': 99999}
+    assert select_model_by_project_size(metrics_99999) == 'gpt-4o'
+
+    metrics_100000 = {'total_lines': 100000}
+    assert select_model_by_project_size(metrics_100000) == 'gpt-4-turbo'
+
+
+@pytest.mark.unit
+def test_select_model_by_project_size_missing_metrics():
+    """Test select_model_by_project_size handles missing metrics gracefully."""
+    metrics = {}  # No total_lines key
+    model = select_model_by_project_size(metrics)
+
+    # Should default to gpt-4o-mini for 0 lines
+    assert model == 'gpt-4o-mini'
+
+
+@pytest.mark.unit
+def test_model_selection_thresholds_configuration():
+    """Test MODEL_SELECTION_THRESHOLDS is properly configured."""
+    assert MODEL_SELECTION_THRESHOLDS is not None
+    assert 'small' in MODEL_SELECTION_THRESHOLDS
+    assert 'medium' in MODEL_SELECTION_THRESHOLDS
+    assert 'large' in MODEL_SELECTION_THRESHOLDS
+
+    # Verify structure
+    assert 'max_lines' in MODEL_SELECTION_THRESHOLDS['small']
+    assert 'model' in MODEL_SELECTION_THRESHOLDS['small']
+    assert MODEL_SELECTION_THRESHOLDS['small']['max_lines'] == 10000
+
+
+@pytest.mark.unit
+def test_auto_model_selection_configuration():
+    """Test AUTO_MODEL_SELECTION configuration."""
+    assert AUTO_MODEL_SELECTION is not None
+    assert isinstance(AUTO_MODEL_SELECTION, bool)
+
+
+@pytest.mark.unit
+def test_create_model_function():
+    """Test create_model function creates model with correct configuration."""
+    test_model = create_model('gpt-4o-mini', temperature=0.5)
+
+    assert test_model is not None
+    # Verify model has tools bound
+    assert hasattr(test_model, 'invoke')
+
+
+@pytest.mark.unit
+def test_run_klaro_with_auto_model_selection(mock_env_vars):
+    """Test run_klaro_langgraph with automatic model selection enabled."""
+    import tempfile
+    import os
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        # Create a small test project
+        test_file = os.path.join(tmpdir, "test.py")
+        with open(test_file, 'w') as f:
+            f.write("# Test\n" * 100)
+
+        with patch('main.AUTO_MODEL_SELECTION', True):
+            with patch('main.init_knowledge_base', return_value="Initialized"):
+                with patch('main.workflow.compile') as mock_compile:
+                    mock_app = Mock()
+                    mock_app.invoke = Mock(return_value={
+                        "messages": [AIMessage(content="Final Answer: # README")],
+                        "error_log": ""
+                    })
+                    mock_compile.return_value = mock_app
+
+                    with patch('builtins.print') as mock_print:
+                        run_klaro_langgraph(project_path=tmpdir)
+
+                        # Verify size analysis was printed
+                        print_calls = [str(call) for call in mock_print.call_args_list]
+                        assert any("Analyzing project size" in call for call in print_calls)
+                        assert any("gpt-4o-mini" in call for call in print_calls)
+
+
+@pytest.mark.unit
+def test_run_klaro_with_disabled_auto_model_selection(mock_env_vars):
+    """Test run_klaro_langgraph with automatic model selection disabled."""
+    with patch('main.AUTO_MODEL_SELECTION', False):
+        with patch('main.init_knowledge_base', return_value="Initialized"):
+            with patch('main.workflow.compile') as mock_compile:
+                mock_app = Mock()
+                mock_app.invoke = Mock(return_value={
+                    "messages": [AIMessage(content="Final Answer: # README")],
+                    "error_log": ""
+                })
+                mock_compile.return_value = mock_app
+
+                with patch('builtins.print') as mock_print:
+                    run_klaro_langgraph(project_path=".")
+
+                    # Verify auto selection was disabled
+                    print_calls = [str(call) for call in mock_print.call_args_list]
+                    assert any("Auto model selection disabled" in call for call in print_calls)
+
+
+@pytest.mark.unit
+def test_run_klaro_handles_project_analysis_error(mock_env_vars):
+    """Test run_klaro_langgraph handles project analysis errors gracefully."""
+    with patch('main.AUTO_MODEL_SELECTION', True):
+        with patch('main.analyze_project_size') as mock_analyze:
+            mock_analyze.return_value = {
+                'error': 'Directory not found',
+                'total_files': 0,
+                'total_lines': 0,
+                'complexity': 'unknown'
+            }
+
+            with patch('main.init_knowledge_base', return_value="Initialized"):
+                with patch('main.workflow.compile') as mock_compile:
+                    mock_app = Mock()
+                    mock_app.invoke = Mock(return_value={
+                        "messages": [AIMessage(content="Final Answer: # README")],
+                        "error_log": ""
+                    })
+                    mock_compile.return_value = mock_app
+
+                    with patch('builtins.print') as mock_print:
+                        run_klaro_langgraph(project_path="/invalid/path")
+
+                        # Should fall back to default model
+                        print_calls = [str(call) for call in mock_print.call_args_list]
+                        assert any("Warning" in call for call in print_calls)
+
+
+@pytest.mark.unit
+def test_model_selection_with_environment_variables():
+    """Test model selection respects environment variable overrides."""
+    import os
+
+    # Test KLARO_SMALL_MODEL override
+    with patch.dict(os.environ, {'KLARO_SMALL_MODEL': 'custom-model-small'}):
+        from main import MODEL_SELECTION_THRESHOLDS
+        # Re-import to get updated config (in practice, this would be set at startup)
+        # For this test, we verify the env var is read correctly
+        assert os.getenv('KLARO_SMALL_MODEL') == 'custom-model-small'

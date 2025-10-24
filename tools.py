@@ -888,3 +888,156 @@ def retrieve_knowledge(query: str) -> str:
     except Exception as e:
         # Catch errors: query embedding failures, ChromaDB access issues, etc.
         return f"Error retrieving knowledge: {e}"
+
+
+# --- Project Size Analysis Functions ---
+
+def analyze_project_size(directory: str = '.') -> dict:
+    """Analyzes project size and complexity for intelligent model selection.
+
+    Recursively scans the specified directory to gather metrics about Python files,
+    total lines of code, and project complexity. Used to automatically select the
+    most appropriate LLM model based on project scale.
+
+    Args:
+        directory (str, optional): Path to the project directory to analyze.
+            Can be relative or absolute. Defaults to '.' (current directory).
+
+    Returns:
+        dict: Project metrics with the following structure:
+            {
+                'total_files': int,        # Total Python files found
+                'total_lines': int,        # Total lines of code across all files
+                'python_files': int,       # Number of .py files
+                'avg_file_size': int,      # Average lines per file
+                'complexity': str          # 'small', 'medium', or 'large'
+            }
+
+    Example:
+        >>> metrics = analyze_project_size("./my_project")
+        >>> print(metrics)
+        {
+            'total_files': 15,
+            'total_lines': 4523,
+            'python_files': 15,
+            'avg_file_size': 301,
+            'complexity': 'small'
+        }
+
+    Technical Notes:
+        - Only counts Python (.py) files
+        - Respects .gitignore patterns (uses is_ignored function)
+        - Complexity classification:
+            * small: < 10,000 lines
+            * medium: 10,000 - 100,000 lines
+            * large: > 100,000 lines
+        - Returns error dict if directory doesn't exist
+    """
+    if not os.path.isdir(directory):
+        return {
+            'total_files': 0,
+            'total_lines': 0,
+            'python_files': 0,
+            'avg_file_size': 0,
+            'complexity': 'unknown',
+            'error': f"Directory not found: '{directory}'"
+        }
+
+    total_files = 0
+    total_lines = 0
+    python_files = []
+
+    # Walk through directory tree
+    for root, dirs, files in os.walk(directory):
+        # Filter out ignored directories
+        i = 0
+        while i < len(dirs):
+            relative_dir = os.path.relpath(os.path.join(root, dirs[i]), directory)
+            if is_ignored(relative_dir):
+                del dirs[i]
+            else:
+                i += 1
+
+        # Count Python files and lines
+        for file in files:
+            if file.endswith('.py'):
+                file_path = os.path.join(root, file)
+                relative_path = os.path.relpath(file_path, directory)
+
+                # Skip if file matches gitignore patterns
+                if is_ignored(relative_path):
+                    continue
+
+                try:
+                    with open(file_path, 'r', encoding='utf-8') as f:
+                        lines = len(f.readlines())
+                        total_lines += lines
+                        python_files.append(relative_path)
+                        total_files += 1
+                except Exception:
+                    # Skip files that can't be read
+                    continue
+
+    # Calculate metrics
+    avg_file_size = total_lines // total_files if total_files > 0 else 0
+
+    # Determine complexity
+    if total_lines < 10000:
+        complexity = 'small'
+    elif total_lines < 100000:
+        complexity = 'medium'
+    else:
+        complexity = 'large'
+
+    return {
+        'total_files': total_files,
+        'total_lines': total_lines,
+        'python_files': total_files,
+        'avg_file_size': avg_file_size,
+        'complexity': complexity
+    }
+
+
+def select_model_by_project_size(metrics: dict) -> str:
+    """Selects the optimal LLM model based on project complexity metrics.
+
+    Analyzes project size metrics and returns the most appropriate OpenAI model
+    for documentation generation. Larger projects use more powerful models to
+    handle increased complexity, while smaller projects use faster, cost-effective models.
+
+    Args:
+        metrics (dict): Project metrics from analyze_project_size() containing:
+            - total_lines (int): Total lines of code
+            - complexity (str): Project complexity classification
+
+    Returns:
+        str: OpenAI model name to use:
+            - 'gpt-4o-mini': Small projects (< 10K lines) - fast and cost-effective
+            - 'gpt-4o': Medium projects (10K-100K lines) - balanced performance
+            - 'gpt-4-turbo': Large projects (> 100K lines) - maximum capability
+
+    Example:
+        >>> metrics = {'total_lines': 5000, 'complexity': 'small'}
+        >>> model = select_model_by_project_size(metrics)
+        >>> print(model)
+        'gpt-4o-mini'
+
+        >>> metrics = {'total_lines': 50000, 'complexity': 'medium'}
+        >>> model = select_model_by_project_size(metrics)
+        >>> print(model)
+        'gpt-4o'
+
+    Technical Notes:
+        - Model selection is based on total_lines thresholds
+        - Can be overridden via MODEL_SELECTION_THRESHOLDS config in main.py
+        - Defaults to gpt-4o if metrics are invalid or missing
+    """
+    total_lines = metrics.get('total_lines', 0)
+
+    # Selection logic based on project size
+    if total_lines < 10000:
+        return 'gpt-4o-mini'
+    elif total_lines < 100000:
+        return 'gpt-4o'
+    else:
+        return 'gpt-4-turbo'
