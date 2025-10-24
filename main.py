@@ -54,6 +54,8 @@ Technical Notes:
 """
 
 import os
+import threading
+from datetime import datetime
 from typing import TypedDict, Annotated, Sequence
 
 # LangGraph and LangChain Imports
@@ -104,6 +106,18 @@ LLM_MODEL = os.getenv('KLARO_DEFAULT_MODEL', "gpt-4o")
 # Recursion Limit: Maximum number of agent iterations before forced termination
 # Prevents infinite loops while allowing thorough analysis (default: 50)
 RECURSION_LIMIT = int(os.getenv("KLARO_RECURSION_LIMIT", "50"))
+
+# Timeout Configuration: Prevents indefinite hanging during execution
+# LLM_TIMEOUT: Maximum seconds to wait for LLM response (default: 120s)
+# EXECUTION_TIMEOUT: Maximum seconds for entire agent execution (default: 600s = 10 min)
+# TOOL_TIMEOUT: Maximum seconds for individual tool execution (default: 60s)
+LLM_TIMEOUT = int(os.getenv("KLARO_LLM_TIMEOUT", "120"))
+EXECUTION_TIMEOUT = int(os.getenv("KLARO_EXECUTION_TIMEOUT", "600"))
+TOOL_TIMEOUT = int(os.getenv("KLARO_TOOL_TIMEOUT", "60"))
+
+# Debug Mode: Enable verbose logging to diagnose stalling issues
+# Set KLARO_DEBUG=true to see detailed progress messages
+DEBUG_MODE = os.getenv("KLARO_DEBUG", "false").lower() == "true"
 
 # Auto Model Selection: Enable/disable automatic model selection based on project size
 # Set KLARO_AUTO_MODEL_SELECTION=false to use fixed LLM_MODEL
@@ -175,8 +189,19 @@ class AgentState(TypedDict):
 
 # --- 4. LangGraph Nodes ---
 
+def debug_log(message: str):
+    """Logs debug messages with timestamp when DEBUG_MODE is enabled.
+
+    Args:
+        message (str): Debug message to log
+    """
+    if DEBUG_MODE:
+        timestamp = datetime.now().strftime("%H:%M:%S.%f")[:-3]
+        print(f"[DEBUG {timestamp}] {message}")
+
+
 def create_model(selected_model: str, temperature: float = 0.2):
-    """Creates and configures an LLM instance with tool bindings.
+    """Creates and configures an LLM instance with tool bindings and timeout.
 
     Args:
         selected_model (str): OpenAI model name (e.g., 'gpt-4o', 'gpt-4o-mini')
@@ -184,8 +209,19 @@ def create_model(selected_model: str, temperature: float = 0.2):
 
     Returns:
         ChatOpenAI: Configured LLM instance bound with tools
+
+    Technical Notes:
+        - Sets request_timeout to LLM_TIMEOUT (default: 120s)
+        - Sets max_retries to 2 (prevents infinite retry loops)
+        - Binds all tools for LLM function calling
     """
-    llm = ChatOpenAI(model=selected_model, temperature=temperature)
+    llm = ChatOpenAI(
+        model=selected_model,
+        temperature=temperature,
+        request_timeout=LLM_TIMEOUT,  # Prevent indefinite hanging on API calls
+        max_retries=2  # Limit retry attempts to avoid infinite loops
+    )
+    debug_log(f"Created LLM model: {selected_model} with timeout={LLM_TIMEOUT}s")
     return llm.bind_tools(tools)
 
 
@@ -236,10 +272,30 @@ def run_model(state: AgentState):
         - model is the LLM bound with tools (via bind_tools)
         - Return dict is merged with existing state (messages appended via reducer)
     """
+    # Progress logging
+    message_count = len(state["messages"])
+    debug_log(f"▶ Entering run_model (iteration {message_count})")
+
     # Send the entire message history to the LLM.
-    response = model.invoke(state["messages"])
-    # Append the LLM's response and clear any previous error.
-    return {"messages": [response], "error_log": ""} 
+    try:
+        debug_log(f"  → Invoking LLM with {message_count} messages in history")
+        response = model.invoke(state["messages"])
+
+        # Log response details
+        if response.tool_calls:
+            tool_names = [tc.get("name", "unknown") for tc in response.tool_calls]
+            debug_log(f"  ← LLM responded with tool calls: {tool_names}")
+        elif response.content:
+            content_preview = response.content[:100].replace("\n", " ")
+            debug_log(f"  ← LLM responded with content: {content_preview}...")
+            if "Final Answer" in response.content:
+                debug_log(f"  ✓ Final Answer detected - task complete")
+
+        # Append the LLM's response and clear any previous error.
+        return {"messages": [response], "error_log": ""}
+    except Exception as e:
+        debug_log(f"  ✗ LLM invocation failed: {str(e)}")
+        raise 
 
 # --- 5. LangGraph Router (Edges) ---
 
@@ -302,12 +358,24 @@ def decide_next_step(state: AgentState):
     # Get the most recent message from the conversation history
     # This is either an AIMessage (LLM response) or ToolMessage (tool result)
     last_message = state["messages"][-1]
+    message_count = len(state["messages"])
+
+    debug_log(f"◆ Routing decision (message count: {message_count})")
+
+    # --- SAFETY CHECK: Prevent infinite loops ---
+    # If message count approaches recursion limit, force termination
+    if message_count >= RECURSION_LIMIT * 0.95:
+        debug_log(f"  ⚠ Approaching recursion limit ({message_count}/{RECURSION_LIMIT})")
+        if message_count >= RECURSION_LIMIT:
+            debug_log(f"  ✗ Recursion limit exceeded - forcing termination")
+            return END
 
     # --- ROUTING DECISION TREE (evaluated in priority order) ---
 
     # 1. ERROR RECOVERY: Check for errors from previous tool execution
     # The error_log is populated by failed tool calls or LLM invocation errors
     if state.get("error_log"):
+         debug_log(f"  → Routing to run_model (error recovery)")
          # Route back to the model so it can see the error and try a different approach
          # The LLM will receive the error in the next run_model invocation
          return "run_model"
@@ -316,6 +384,7 @@ def decide_next_step(state: AgentState):
     # The system prompt instructs the LLM to output "Final Answer: [content]" when done
     # This is the termination condition for the ReAct loop
     if last_message.content and "Final Answer" in last_message.content:
+        debug_log(f"  → Routing to END (Final Answer detected)")
         # END is a special LangGraph marker that terminates the workflow
         # The final state will be returned to the caller
         return END  # Terminate the graph.
@@ -324,6 +393,8 @@ def decide_next_step(state: AgentState):
     # When LLM decides to use a tool, it populates last_message.tool_calls
     # tool_calls is a list of dictionaries with: {name: "tool_name", args: {...}}
     if last_message.tool_calls:
+        tool_count = len(last_message.tool_calls)
+        debug_log(f"  → Routing to call_tool ({tool_count} tool(s) to execute)")
         # Route to call_tool node, which will execute the requested tools
         # After execution, ToolMessages will be appended to conversation history
         return "call_tool"
@@ -331,6 +402,7 @@ def decide_next_step(state: AgentState):
     # 4. CONTINUE REASONING: If no action decided yet, keep the ReAct loop going
     # This happens when the LLM outputs a "Thought:" step without taking action
     # Loop back to run_model to let the LLM continue its reasoning process
+    debug_log(f"  → Routing to run_model (continue reasoning)")
     return "run_model" 
 
 # --- 6. LangGraph Setup ---
@@ -403,6 +475,51 @@ All README.md documents produced using this guide must adhere to the following s
 3.  **Tone and Language:** The tone must be technical, professional, and clear. Code examples must always be formatted with triple backticks (```python).
 """
 
+class TimeoutException(Exception):
+    """Exception raised when execution timeout is exceeded."""
+    pass
+
+
+def run_with_timeout(func, args, kwargs, timeout_seconds):
+    """Executes a function with a timeout (Windows-compatible using threading).
+
+    Args:
+        func: Function to execute
+        args: Positional arguments for the function
+        kwargs: Keyword arguments for the function
+        timeout_seconds: Maximum execution time in seconds
+
+    Returns:
+        Function result if successful
+
+    Raises:
+        TimeoutException: If execution exceeds timeout_seconds
+    """
+    result = [None]
+    exception = [None]
+
+    def target():
+        try:
+            result[0] = func(*args, **kwargs)
+        except Exception as e:
+            exception[0] = e
+
+    thread = threading.Thread(target=target)
+    thread.daemon = True
+    thread.start()
+    thread.join(timeout_seconds)
+
+    if thread.is_alive():
+        # Thread is still running - timeout occurred
+        debug_log(f"✗ Execution timeout ({timeout_seconds}s) exceeded")
+        raise TimeoutException(f"Execution exceeded timeout of {timeout_seconds} seconds")
+
+    if exception[0]:
+        raise exception[0]
+
+    return result[0]
+
+
 def run_klaro_langgraph(project_path: str = "."):
     """Executes the Klaro autonomous documentation agent on the specified project.
 
@@ -433,6 +550,7 @@ def run_klaro_langgraph(project_path: str = "."):
         - LangGraph execution fails (network issues, API errors)
         - Recursion limit exceeded
         - Tool execution errors
+        - Execution timeout exceeded
 
     Execution Flow:
         1. **Project Analysis**: Analyzes project size and complexity
@@ -446,6 +564,7 @@ def run_klaro_langgraph(project_path: str = "."):
 
         4. **Graph Execution**: Runs app.invoke() with initial state
            Max iterations controlled by RECURSION_LIMIT env var
+           Max time controlled by EXECUTION_TIMEOUT env var
 
         5. **Output Extraction**: Extracts last message content, strips "Final Answer:" prefix
            Prints: "✅ TASK SUCCESS: LangGraph Agent Finished."
@@ -478,10 +597,19 @@ def run_klaro_langgraph(project_path: str = "."):
         - System prompt and task are combined into single HumanMessage
         - Final output stripped of "Final Answer:" prefix for clean markdown
         - Recursion limit prevents infinite loops (default 50 iterations)
+        - Execution timeout prevents indefinite hanging (default 600s)
     """
     global model  # Use global model variable for run_model function
 
+    start_time = datetime.now()
     print("--- Launching Klaro LangGraph Agent ---")
+    print(f"🕐 Start time: {start_time.strftime('%H:%M:%S')}")
+    print(f"⚙️  Configuration:")
+    print(f"   - Recursion limit: {RECURSION_LIMIT}")
+    print(f"   - Execution timeout: {EXECUTION_TIMEOUT}s")
+    print(f"   - LLM timeout: {LLM_TIMEOUT}s")
+    print(f"   - Debug mode: {'enabled' if DEBUG_MODE else 'disabled'}")
+    print()
 
     # --- STEP 1: Project Size Analysis and Model Selection ---
     if AUTO_MODEL_SELECTION:
@@ -530,28 +658,56 @@ def run_klaro_langgraph(project_path: str = "."):
     initial_message_content = f"{SYSTEM_PROMPT}\n\nUSER'S TASK: {task_input}"
     
     inputs = {"messages": [HumanMessage(content=initial_message_content)], "error_log": ""}
-    
+
     try:
-        # Run the LangGraph flow
-        final_state = app.invoke(inputs, {"recursion_limit": RECURSION_LIMIT}) 
-        
+        # Run the LangGraph flow with timeout protection
+        debug_log(f"🚀 Starting LangGraph execution (timeout: {EXECUTION_TIMEOUT}s)")
+
+        # Wrap app.invoke with timeout (Windows-compatible)
+        final_state = run_with_timeout(
+            app.invoke,
+            args=(inputs,),
+            kwargs={"recursion_limit": RECURSION_LIMIT},
+            timeout_seconds=EXECUTION_TIMEOUT
+        )
+
+        # Calculate execution time
+        end_time = datetime.now()
+        elapsed = (end_time - start_time).total_seconds()
+
         # Extract the final message
         final_message = final_state["messages"][-1].content
-        
+
         print("\n" + "="*50)
         print("✅ TASK SUCCESS: LangGraph Agent Finished.")
+        print(f"⏱️  Execution time: {elapsed:.1f}s")
+        print(f"📊 Total iterations: {len(final_state['messages']) - 1}")
         print("====================================")
-        
+
         # Clean the Final Answer format
         if final_message.startswith("Final Answer:"):
              final_message = final_message.replace("Final Answer:", "").strip()
-             
+
         print(final_message)
 
+    except TimeoutException as e:
+        end_time = datetime.now()
+        elapsed = (end_time - start_time).total_seconds()
+        print("\n" + "="*50)
+        print("⏱️  TIMEOUT: LangGraph execution exceeded time limit")
+        print(f"⏱️  Execution time: {elapsed:.1f}s (limit: {EXECUTION_TIMEOUT}s)")
+        print(f"💡 Suggestion: Increase KLARO_EXECUTION_TIMEOUT or check LangSmith trace at:")
+        print(f"   https://eu.smith.langchain.com/")
+        print("="*50)
+
     except Exception as e:
+        end_time = datetime.now()
+        elapsed = (end_time - start_time).total_seconds()
         print("\n" + "="*50)
         print("❌ ERROR: LangGraph execution failed.")
+        print(f"⏱️  Execution time: {elapsed:.1f}s")
         print(f"Error Details: {e}")
+        print(f"💡 Check LangSmith trace at: https://eu.smith.langchain.com/")
         print("="*50)
 
 
