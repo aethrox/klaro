@@ -194,7 +194,7 @@ def test_decide_next_step_with_tool_calls():
             HumanMessage(content="Task"),
             AIMessage(
                 content="",
-                tool_calls=[{"name": "read_file", "args": {"file_path": "main.py"}}]
+                tool_calls=[{"name": "read_file", "args": {"file_path": "main.py"}, "id": "call_1"}]
             )
         ],
         "error_log": ""
@@ -374,7 +374,7 @@ def test_llm_model_configuration():
     """Test that LLM_MODEL is set correctly."""
     assert LLM_MODEL is not None
     assert isinstance(LLM_MODEL, str)
-    # Default should be gpt-4o-mini
+    # Default should be gpt-4o
     assert "gpt" in LLM_MODEL.lower() or "claude" in LLM_MODEL.lower()
 
 
@@ -415,8 +415,8 @@ def test_multiple_tool_calls_in_message():
             AIMessage(
                 content="",
                 tool_calls=[
-                    {"name": "list_files", "args": {"directory": "."}},
-                    {"name": "read_file", "args": {"file_path": "main.py"}}
+                    {"name": "list_files", "args": {"directory": "."}, "id": "call_1"},
+                    {"name": "read_file", "args": {"file_path": "main.py"}, "id": "call_2"}
                 ]
             )
         ],
@@ -440,7 +440,7 @@ def test_node_execution_flow(mock_env_vars):
     with patch('main.model') as mock_model:
         mock_model.invoke = Mock(return_value=AIMessage(
             content="",
-            tool_calls=[{"name": "list_files", "args": {"directory": "."}}]
+            tool_calls=[{"name": "list_files", "args": {"directory": "."}, "id": "call_1"}]
         ))
 
         state: AgentState = {

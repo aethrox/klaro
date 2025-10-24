@@ -122,7 +122,7 @@ You should see output indicating the agent is analyzing the codebase and generat
 For a complete list and detailed documentation of all environment variables, see the [Configuration Guide](docs/configuration.md).
 
 ### Model Selection
-By default, Klaro uses `gpt-4o-mini` for cost-effectiveness. To use a different model (e.g., `gpt-4o`), edit the `LLM_MODEL` variable in `main.py` line 78.
+By default, Klaro uses `gpt-4o` for high-quality, accurate outputs. To use a different model (e.g., `gpt-4o-mini` for cost-effectiveness), edit the `LLM_MODEL` variable in `main.py` line 78.
 
 For a detailed comparison of models, cost analysis, and advanced guidance, see the [Configuration Guide](docs/configuration.md).
 

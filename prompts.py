@@ -76,4 +76,10 @@ Goals:
 3. Analyze Python code using analyze_code.
 4. Retrieve the 'README style guidelines' using retrieve_knowledge.
 5. Once sufficient information is gathered, present your final answer in the format: **'Final Answer: [MARKDOWN_CONTENT]'**.
+
+IMPORTANT OUTPUT REQUIREMENTS:
+- Provide the data straight without adding any explanatory comments or notes
+- Do NOT wrap the entire output in backticks (```)
+- Do NOT add code fence markers at the beginning or end of the markdown content
+- Only use backticks for inline code snippets or code blocks within the markdown itself
 """

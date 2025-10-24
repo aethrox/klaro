@@ -92,6 +92,9 @@ KLARO_RETRIEVER: VectorStoreRetriever | None = None
 GITIGNORE_CONTENT = """
 # Byte-compiled / optimized / DLL files
 __pycache__/
+*.pyc
+*.pyo
+*.pyd
 *.py[cod]
 *$py.class
 
@@ -276,7 +279,7 @@ cython_debug/
 """
 
 def get_gitignore_patterns(gitignore_content: str) -> list[str]:
-    """Translates .gitignore patterns into compiled regex patterns for file filtering.
+    r"""Translates .gitignore patterns into compiled regex patterns for file filtering.
 
     This function parses .gitignore syntax and converts common glob patterns
     (*, **, /, etc.) into Python regular expressions that can be used for
@@ -296,7 +299,7 @@ def get_gitignore_patterns(gitignore_content: str) -> list[str]:
             - Regular paths -> matches files or directories
 
     Example:
-        >>> patterns = get_gitignore_patterns("*.py\\n__pycache__/\\n")
+        >>> patterns = get_gitignore_patterns("*.py\n__pycache__/\n")
         >>> patterns
         ['(.*/)?\[\^/\]*\\.py$', '(.*/)?__pycache__(/.*)?$']
         >>> # Use with: re.search(pattern, "path/to/file.py")

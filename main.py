@@ -47,7 +47,7 @@ Usage Example:
     # Analyzes codebase and generates README.md documentation
 
 Technical Notes:
-    - Default model: gpt-4o-mini (change via LLM_MODEL constant)
+    - Default model: gpt-4o (change via LLM_MODEL constant)
     - RAG knowledge base initialized with default style guide at startup
     - System prompt emphasizes tool usage order: list_files -> read_file -> analyze_code -> retrieve_knowledge
     - Final output format must be: "Final Answer: [MARKDOWN_CONTENT]"
@@ -73,9 +73,9 @@ from prompts import SYSTEM_PROMPT
 from tools import list_files, read_file, analyze_code, web_search, init_knowledge_base, retrieve_knowledge 
 
 # --- 1. Configuration ---
-# Model Selection: gpt-4o-mini chosen for cost-effectiveness and good performance on documentation tasks
-# Can be changed to gpt-4o or claude-3-5-sonnet for more complex analysis
-LLM_MODEL = "gpt-4o-mini"
+# Model Selection: gpt-4o chosen for high-quality, accurate outputs
+# Provides better accuracy compared to gpt-4o-mini
+LLM_MODEL = "gpt-4o"
 
 # Recursion Limit: Maximum number of agent iterations before forced termination
 # Prevents infinite loops while allowing thorough analysis (default: 50)
@@ -416,7 +416,7 @@ def run_klaro_langgraph(project_path: str = "."):
 
     Example Usage:
         >>> run_klaro_langgraph("./my_project")
-        --- Launching Klaro LangGraph Agent (Stage 4 - gpt-4o-mini) ---
+        --- Launching Klaro LangGraph Agent (Stage 4 - gpt-4o) ---
         📢 Initializing RAG Knowledge Base...
            -> Setup Result: Knowledge base (ChromaDB) successfully initialized at ./klaro_db. 3 chunks indexed.
         ==================================================

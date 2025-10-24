@@ -21,7 +21,7 @@ Klaro is an autonomous AI agent built on LangGraph that generates technical docu
 - **ReAct Framework**: Enables autonomous reasoning through Thought-Action-Observation cycles
 - **Custom Tools**: Provide codebase exploration, AST analysis, and knowledge retrieval
 - **RAG System**: Ensures documentation consistency with ChromaDB vector store
-- **OpenAI LLM**: Powers decision-making and content generation (gpt-4o-mini)
+- **OpenAI LLM**: Powers decision-making and content generation (gpt-4o)
 
 **Key Design Principles:**
 - Incremental exploration (avoids loading entire codebase into context)
@@ -86,7 +86,7 @@ StateGraph Nodes:
 - **Input**: Current AgentState with complete message history
 - **Function**: Invokes LLM via `model.invoke(state["messages"])`
 - **Output**: `{"messages": [response], "error_log": ""}`
-- **LLM Model**: gpt-4o-mini (temperature=0.2)
+- **LLM Model**: gpt-4o (temperature=0.2)
 - **Bound Tools**: 5 tools (list_files, read_file, analyze_code, web_search, retrieve_knowledge)
 
 **call_tool Node (main.py:296)**
@@ -752,7 +752,7 @@ Final State Extracted and Displayed
 - **KLARO_RECURSION_LIMIT** (optional, default: 50): Maximum agent iterations
 - **LANGSMITH_TRACING** (optional): Enable LangSmith debugging
 - **LANGSMITH_API_KEY** (optional): LangSmith authentication
-- **LLM_MODEL** (code constant, default: "gpt-4o-mini"): Model selection
+- **LLM_MODEL** (code constant, default: "gpt-4o"): Model selection
 
 ### Adding New Tools
 
@@ -830,7 +830,7 @@ Edit `prompts.py:59-79` to change agent instructions, tool usage order, or outpu
 
 **API Call Optimization:**
 - Temperature=0.2 reduces non-determinism
-- gpt-4o-mini balances cost vs. quality
+- gpt-4o provides high accuracy and quality
 - RAG embeddings cached on disk (avoids re-embedding)
 
 **Execution Time:**
@@ -839,9 +839,9 @@ Edit `prompts.py:59-79` to change agent instructions, tool usage order, or outpu
 - Tool execution is fast (local operations except embeddings)
 
 **Cost Estimation:**
-- gpt-4o-mini: ~$0.15 per 1M input tokens, ~$0.60 per 1M output tokens
+- gpt-4o: ~$2.50 per 1M input tokens, ~$10.00 per 1M output tokens
 - Embeddings: ~$0.02 per 1M tokens
-- Typical documentation task: $0.05-0.10
+- Typical documentation task: $0.20-0.40
 
 ---
 

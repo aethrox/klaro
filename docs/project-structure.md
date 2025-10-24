@@ -359,8 +359,8 @@ Create beginner-friendly guides with:
 **Options:**
 
 ```python
-# Cost-effective (default)
-llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.2)
+# High-quality default
+llm = ChatOpenAI(model="gpt-4o", temperature=0.2)
 
 # Higher quality
 llm = ChatOpenAI(model="gpt-4o", temperature=0.2)

@@ -139,8 +139,8 @@ Klaro supports multiple OpenAI models. Model selection affects performance, cost
 
 | Model | Context Window | Cost (Input/Output per 1M tokens) | Speed | Best For |
 |:------|:--------------|:----------------------------------|:------|:---------|
-| `gpt-4o-mini` | 128K | $0.15 / $0.60 | ⚡⚡⚡ Fast | **Default** - Most use cases |
-| `gpt-4o` | 128K | $2.50 / $10.00 | ⚡⚡ Medium | Complex codebases, high accuracy |
+| `gpt-4o` | 128K | $2.50 / $10.00 | ⚡⚡ Medium | **Default** - High accuracy, quality outputs |
+| `gpt-4o-mini` | 128K | $0.15 / $0.60 | ⚡⚡⚡ Fast | Cost-effective alternative |
 | `gpt-4-turbo` | 128K | $10.00 / $30.00 | ⚡ Slower | Maximum reasoning quality |
 | `gpt-3.5-turbo` | 16K | $0.50 / $1.50 | ⚡⚡⚡ Fast | Simple projects (not recommended) |
 
@@ -152,10 +152,10 @@ Klaro supports multiple OpenAI models. Model selection affects performance, cost
 
 ```python
 # main.py (around line 78)
-LLM_MODEL = "gpt-4o-mini"  # Change this line
+LLM_MODEL = "gpt-4o"  # Current default
 
 # Options:
-# LLM_MODEL = "gpt-4o"        # More powerful
+# LLM_MODEL = "gpt-4o-mini"   # More cost-effective
 # LLM_MODEL = "gpt-4-turbo"   # Most powerful
 # LLM_MODEL = "gpt-3.5-turbo" # Cheapest (not recommended)
 ```
@@ -164,7 +164,7 @@ LLM_MODEL = "gpt-4o-mini"  # Change this line
 
 Add to `main.py`:
 ```python
-LLM_MODEL = os.getenv("KLARO_LLM_MODEL", "gpt-4o-mini")
+LLM_MODEL = os.getenv("KLARO_LLM_MODEL", "gpt-4o")
 ```
 
 Then in `.env`:
@@ -174,27 +174,29 @@ KLARO_LLM_MODEL=gpt-4o
 
 ### Model Selection Guide
 
-#### Use `gpt-4o-mini` when:
-- ✅ Analyzing small to medium projects (<10,000 lines)
-- ✅ Cost is a primary concern
-- ✅ Documentation style is straightforward
-- ✅ Fast iteration is needed
-
-**Example Cost:**
-- Project size: 5,000 lines
-- Estimated tokens: ~15,000 input, ~3,000 output
-- Cost: **~$0.01 per run**
-
-#### Use `gpt-4o` when:
-- ✅ Analyzing large, complex codebases (10,000+ lines)
+#### Use `gpt-4o` (Default) when:
+- ✅ Analyzing medium to large codebases (5,000+ lines)
+- ✅ High-quality, accurate documentation is required
 - ✅ Code has intricate logic or architectural patterns
-- ✅ Higher quality documentation is required
 - ✅ Multiple programming paradigms are used
+- ✅ You need reliable, professional outputs
 
 **Example Cost:**
 - Project size: 20,000 lines
 - Estimated tokens: ~50,000 input, ~8,000 output
 - Cost: **~$0.20 per run**
+
+#### Use `gpt-4o-mini` when:
+- ✅ Analyzing small projects (<5,000 lines)
+- ✅ Cost is a primary concern
+- ✅ Documentation style is straightforward
+- ✅ Fast iteration is needed
+- ✅ Budget constraints are strict
+
+**Example Cost:**
+- Project size: 5,000 lines
+- Estimated tokens: ~15,000 input, ~3,000 output
+- Cost: **~$0.01 per run**
 
 #### Use `gpt-4-turbo` when:
 - ✅ Maximum reasoning capability is required
@@ -214,16 +216,17 @@ KLARO_LLM_MODEL=gpt-4o
 | Model | Runtime | Cost | Quality Score* | Details Captured |
 |:------|:--------|:-----|:---------------|:-----------------|
 | gpt-3.5-turbo | 45s | $0.003 | 6/10 | Basic structure, misses nuances |
-| gpt-4o-mini | 60s | $0.008 | 8/10 | **Good balance** (Recommended) |
-| gpt-4o | 90s | $0.045 | 9/10 | Excellent details, architecture |
+| gpt-4o-mini | 60s | $0.008 | 8/10 | Good balance, cost-effective |
+| gpt-4o | 90s | $0.045 | 9/10 | **Default** - Excellent details, high accuracy |
 | gpt-4-turbo | 120s | $0.285 | 9.5/10 | Comprehensive, may be overkill |
 
 *Quality Score: Subjective rating based on completeness, accuracy, and usefulness*
 
 ### Cost Optimization Tips
 
-1. **Use gpt-4o-mini by default**
-   - Switch to gpt-4o only for complex projects
+1. **Consider gpt-4o-mini for cost savings**
+   - Switch to gpt-4o-mini for simple projects or when budget is a concern
+   - Default gpt-4o provides better accuracy but at higher cost
 
 2. **Analyze subdirectories separately**
    ```bash
@@ -401,8 +404,8 @@ python main.py
 **Example trace structure:**
 ```
 Run: run_klaro_langgraph
-├─ run_model (2.3s) - $0.002
-│  └─ ChatOpenAI (gpt-4o-mini)
+├─ run_model (2.3s) - $0.015
+│  └─ ChatOpenAI (gpt-4o)
 │     ├─ Input: 1,234 tokens
 │     └─ Output: 456 tokens
 ├─ call_tool (0.5s)
@@ -986,11 +989,11 @@ def analyze_database_schema(db_path: str) -> str:
 # advanced_main.py
 from langchain_openai import ChatOpenAI
 
-# Fast model for simple tasks
-fast_model = ChatOpenAI(model="gpt-4o-mini", temperature=0)
+# Standard model (default)
+standard_model = ChatOpenAI(model="gpt-4o", temperature=0)
 
-# Powerful model for complex analysis
-powerful_model = ChatOpenAI(model="gpt-4o", temperature=0)
+# Cost-effective model for simple tasks
+fast_model = ChatOpenAI(model="gpt-4o-mini", temperature=0)
 
 def run_model_smart(state: AgentState):
     """Choose model based on task complexity."""
@@ -1104,7 +1107,7 @@ This section covers advanced configuration options for Klaro, including custom L
 
 ### Custom LLM Models
 
-Klaro supports multiple LLM models through the LangChain integration. By default, it uses `gpt-4o-mini` for cost-effectiveness, but you can configure alternative models.
+Klaro supports multiple LLM models through the LangChain integration. By default, it uses `gpt-4o` for high-quality, accurate outputs, but you can configure alternative models.
 
 #### Switching Models
 
@@ -1123,19 +1126,20 @@ LLM_MODEL=gpt-4o  # Change to your preferred model
 Edit `main.py` line 78:
 
 ```python
-# Before:
-LLM_MODEL = "gpt-4o-mini"
+# Current default:
+LLM_MODEL = "gpt-4o"
 
-# After:
-LLM_MODEL = "gpt-4o"  # or any other supported model
+# Alternative options:
+# LLM_MODEL = "gpt-4o-mini"  # For cost savings
+# LLM_MODEL = "gpt-4-turbo"  # For maximum quality
 ```
 
 #### Supported Models
 
 | Model | Speed | Cost | Quality | Best For |
 |:------|:------|:-----|:--------|:---------|
-| `gpt-4o-mini` | ⚡⚡⚡ | $ | ⭐⭐⭐ | Standard docs, small-medium projects |
-| `gpt-4o` | ⚡⚡ | $$ | ⭐⭐⭐⭐ | Complex codebases, detailed analysis |
+| `gpt-4o` | ⚡⚡ | $$ | ⭐⭐⭐⭐ | **Default** - Complex codebases, high-quality docs |
+| `gpt-4o-mini` | ⚡⚡⚡ | $ | ⭐⭐⭐ | Cost savings, simple projects |
 | `gpt-4-turbo` | ⚡ | $$$ | ⭐⭐⭐⭐⭐ | Large projects requiring deep understanding |
 
 #### Using Non-OpenAI Models
@@ -1619,7 +1623,7 @@ app = FastAPI()
 
 class DocumentationRequest(BaseModel):
     project_path: str
-    model: str = "gpt-4o-mini"
+    model: str = "gpt-4o"
 
 @app.post("/generate-docs")
 async def generate_documentation(request: DocumentationRequest):
