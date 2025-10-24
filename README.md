@@ -20,18 +20,18 @@ Writing and maintaining documentation is a time-consuming, tedious, and often ne
 Klaro automates the entire documentation process. It employs an advanced **Pure Python ReAct loop** coupled with custom analysis tools and a **Retrieval-Augmented Generation (RAG) system** to ensure the generated documentation is not only accurate but also adheres to specified project style guides.
 
 ## ✨ Core Features (Completed & Planned)
-* **Autonomous Code Analysis:** Implemented using **Python's AST (Abstract Syntax Tree)** to read the entire file tree, identify key logic (classes, functions), and extract structured data for analysis.
-* **Style Guide Integration (RAG):** **(Completed in Stage 3)** Learns from your existing project style guides or reference documents, retrieving relevant context from a vector database to match the tone, structure, and style of the final documentation.
-* **Multi-Tool Orchestration:** Uses a **Pure Python ReAct** (Reasoning and Acting) loop to dynamically plan steps, execute custom tools (`list_files`, `analyze_code`, `web_search`), and self-correct errors during the documentation process.
-* **Multi-Format Output (Planned):** Generates professional Markdown (`README.md`), API references, and more.
-* **Smart Model Steering (Planned):** Will utilize LangGraph for dynamic model routing (e.g., using GPT-4o mini for file listing and GPT-4o for complex analysis) to optimize API costs.
+- **Autonomous Code Analysis:** Implemented using **Python's AST (Abstract Syntax Tree)** to read the entire file tree, identify key logic (classes, functions), and extract structured data for analysis.
+- **Style Guide Integration (RAG):** **(Completed in Stage 3)** Learns from your existing project style guides or reference documents, retrieving relevant context from a vector database to match the tone, structure, and style of the final documentation.
+- **Multi-Tool Orchestration:** Uses a **Pure Python ReAct** (Reasoning and Acting) loop to dynamically plan steps, execute custom tools (`list_files`, `analyze_code`, `web_search`), and self-correct errors during the documentation process.
+- **Multi-Format Output (Planned):** Generates professional Markdown (`README.md`), API references, and more.
+- **Smart Model Steering (Planned):** Will utilize LangGraph for dynamic model routing (e.g., using GPT-4o mini for file listing and GPT-4o for complex analysis) to optimize API costs.
 
 ## 🛠 Technology Stack
-* **Core:** Python 3.11+ (Current stable version)
-* **AI Framework:** LangChain (Tools & Prompts) & **LangGraph (Agent Orchestration)**
-* **Agent Core:** LangGraph State Machine (Stage 4 Completed)
-* **Vector DB/RAG:** ChromaDB, OpenAI Embeddings
-* **Code Analysis:** `ast` (Abstract Syntax Tree)
+- **Core:** Python 3.10+ (3.11+ recommended)
+- **AI Framework:** LangChain (Tools & Prompts) & **LangGraph (Agent Orchestration)**
+- **Agent Core:** LangGraph State Machine (Stage 4 Completed)
+- **Vector DB/RAG:** ChromaDB, OpenAI Embeddings
+- **Code Analysis:** `ast` (Abstract Syntax Tree)
 
 ## 🚧 Status: Under Active Development
 This project is currently in active development, having completed **Stages 2 (Agent Core)**, **3 (RAG/Quality)**, and **4 (LangGraph Integration)** of the roadmap.
@@ -41,10 +41,10 @@ This project is currently in active development, having completed **Stages 2 (Ag
 ### Prerequisites
 Before installing Klaro, ensure you have the following:
 
-* **Python 3.11 or higher** - [Download Python](https://www.python.org/downloads/)
-* **OpenAI API Key** - Get your API key from [OpenAI Platform](https://platform.openai.com/api-keys)
-* **Git** - For cloning the repository
-* **pip** - Python package manager (included with Python)
+- **Python 3.10+ (3.11+ recommended)** - [Download Python](https://www.python.org/downloads/)
+- **OpenAI API Key** - Get your API key from [OpenAI Platform](https://platform.openai.com/api-keys)
+- **Git** - For cloning the repository
+- **pip** - Python package manager (included with Python)
 
 ### Step 1: Clone the Repository
 ```bash
@@ -113,74 +113,35 @@ You should see output indicating the agent is analyzing the codebase and generat
 ### Environment Variables
 
 | Variable | Required | Default | Description |
-|----------|----------|---------|-------------|
+|:---------|:---------|:--------|:------------|
 | `OPENAI_API_KEY` | **Yes** | - | Your OpenAI API key for LLM and embeddings |
 | `KLARO_RECURSION_LIMIT` | No | `50` | Maximum agent iterations before timeout |
 | `LANGSMITH_TRACING` | No | `false` | Enable LangSmith tracing for debugging |
 | `LANGSMITH_API_KEY` | No | - | LangSmith API key (if tracing enabled) |
-| `LANGSMITH_ENDPOINT` | No | - | LangSmith endpoint URL |
-| `LANGSMITH_PROJECT` | No | - | LangSmith project name |
+
+For a complete list and detailed documentation of all environment variables, see the [Configuration Guide](docs/configuration.md).
 
 ### Model Selection
-By default, Klaro uses `gpt-4o-mini` for cost-effectiveness. To change the model, edit `main.py` line 78:
+By default, Klaro uses `gpt-4o-mini` for cost-effectiveness. To use a different model (e.g., `gpt-4o`), edit the `LLM_MODEL` variable in `main.py` line 78.
 
-```python
-LLM_MODEL = "gpt-4o-mini"  # Change to "gpt-4o" or other supported model
-```
-
-**Supported Models:**
-* `gpt-4o-mini` - Fast, cost-effective (recommended for most use cases)
-* `gpt-4o` - More powerful reasoning (higher cost)
-* `gpt-4-turbo` - Balanced performance and cost
+For a detailed comparison of models, cost analysis, and advanced guidance, see the [Configuration Guide](docs/configuration.md).
 
 ## 🚀 Usage
 
 ### Basic Usage
-Run the agent on current directory:
+Run Klaro on the current directory:
 ```bash
 python main.py
 ```
 
-### Analyze Specific Project
+Analyze a specific project:
 ```bash
 python main.py /path/to/project
 ```
 
-### Programmatic Usage
-```python
-from main import run_klaro_langgraph
+The agent will explore the codebase, analyze code structure, and generate documentation based on your style guidelines.
 
-result = run_klaro_langgraph(project_path="./my_project")
-```
-
-### Output
-The agent generates and displays:
-- Project overview
-- Technology stack analysis
-- Generated README.md content
-- File structure documentation
-
-Output is printed to terminal. To save to file:
-```bash
-python main.py > output.txt
-```
-
-### Quick Start Example
-```bash
-# Analyze Klaro itself
-python main.py .
-
-# Analyze another project
-python main.py ../another-project
-```
-
-### How It Works
-The agent will:
-1. Explore the project structure using `list_files`
-2. Read critical files (main.py, requirements.txt, etc.)
-3. Analyze Python code using AST
-4. Retrieve style guidelines from the knowledge base
-5. Generate comprehensive README documentation
+For detailed usage examples, programmatic usage, integration patterns, and troubleshooting, see the [Usage Examples Guide](docs/usage-examples.md).
 
 ## License
 This project is licensed under the MIT License - see the [LICENSE](./LICENSE) file for details.

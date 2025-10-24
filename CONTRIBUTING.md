@@ -37,9 +37,13 @@ Look for issues tagged with `good first issue` for beginner-friendly contributio
 
 ### Prerequisites
 
-- **Python**: 3.10 or higher
+- **Python**: 3.10+ (3.11+ recommended)
 - **Git**: For version control
 - **OpenAI API Key**: Required for LLM and embeddings
+
+For basic installation, see the [README.md installation guide](../README.md#installation).
+
+Additional development-specific requirements are listed below:
 
 ### Step 1: Fork and Clone
 
@@ -52,34 +56,7 @@ cd klaro
 git remote add upstream https://github.com/ORIGINAL_OWNER/klaro.git
 ```
 
-### Step 2: Create Virtual Environment
-
-```bash
-# Create virtual environment
-python -m venv venv
-
-# Activate virtual environment
-# On Windows:
-venv\Scripts\activate
-# On macOS/Linux:
-source venv/bin/activate
-```
-
-### Step 3: Install Dependencies
-
-```bash
-# Install project dependencies
-pip install -r requirements.txt
-
-# Install development dependencies
-pip install pytest pytest-cov black flake8 mypy
-
-# Install pre-commit hooks (optional but recommended)
-pip install pre-commit
-pre-commit install
-```
-
-### Step 4: Configure Environment
+### Step 2: Configure Environment
 
 ```bash
 # Copy .env.example to .env
@@ -103,58 +80,18 @@ python main.py
 
 ## Code Style Guidelines
 
-Klaro follows **PEP 8** standards with some project-specific conventions. For detailed style guidelines, see [docs/code-style.md](docs/code-style.md).
+Klaro follows **PEP 8** standards with project-specific conventions.
 
-### Quick Reference
+**Quick Reference:**
+- Python Version: 3.10+ (3.11+ recommended)
+- Line length: 100 characters
+- Naming: `snake_case` for functions/variables, `PascalCase` for classes, `UPPER_SNAKE_CASE` for constants
+- Docstrings: Google-style, required for all public functions/classes
+- Type hints: Required for all function signatures
+- Formatting tool: Black
+- Linting: flake8
 
-**Python Version**: 3.10+
-
-**Formatting**:
-- Line length: 100 characters (120 for comments)
-- Indentation: 4 spaces (no tabs)
-- String quotes: Double quotes `"` (single quotes for dict keys)
-
-**Naming Conventions**:
-- Functions/variables: `snake_case`
-- Classes: `PascalCase`
-- Constants: `UPPER_SNAKE_CASE`
-- Private members: `_leading_underscore`
-
-**Docstrings**:
-- Use Google-style docstrings
-- Required for all public functions, classes, and modules
-
-**Type Hints**:
-- Use type hints for function signatures
-- Example: `def read_file(file_path: str) -> str:`
-
-### Code Formatting Tools
-
-```bash
-# Format code with Black
-black main.py tools.py prompts.py
-
-# Check style with flake8
-flake8 main.py tools.py prompts.py
-
-# Type checking with mypy
-mypy main.py tools.py
-```
-
-### Pre-commit Hooks
-
-We recommend using pre-commit hooks to automatically format and check code:
-
-```bash
-# Install pre-commit
-pip install pre-commit
-
-# Install hooks
-pre-commit install
-
-# Run hooks manually
-pre-commit run --all-files
-```
+For complete style guidelines, naming conventions, docstring examples, and tooling setup, see [docs/code-style.md](docs/code-style.md).
 
 ---
 
@@ -326,49 +263,13 @@ Closes #42"
 
 All code contributions must include appropriate tests.
 
-### Test Coverage Requirements
+**Quick Requirements:**
+- New files: 90%+ coverage
+- Modified files: Maintain or improve coverage
+- Run tests: `pytest tests/`
+- Run with coverage: `pytest --cov=. --cov-report=html tests/`
 
-- **New Files**: 90%+ coverage
-- **Modified Files**: Maintain or improve existing coverage
-- **Overall Project**: 80%+ coverage
-
-### Test Types Required
-
-1. **Unit Tests**:
-   - Test individual functions in isolation
-   - Mock external dependencies
-   - Fast execution (< 1 second)
-
-2. **Integration Tests** (for significant features):
-   - Test component interactions
-   - Use mocked LLM responses
-   - Cover end-to-end workflows
-
-### Running Tests
-
-```bash
-# Run all tests
-pytest tests/
-
-# Run with coverage
-pytest --cov=. --cov-report=html tests/
-
-# Run specific test types
-pytest tests/ -m unit           # Unit tests only
-pytest tests/ -m integration    # Integration tests only
-pytest tests/ -m "not rag"      # Skip RAG tests (avoid API calls)
-```
-
-### Test Guidelines
-
-- Write clear test names describing what is tested
-- Use AAA pattern (Arrange-Act-Assert)
-- Test edge cases and error conditions
-- Use fixtures from `conftest.py`
-- Mock external API calls (LLM, embeddings)
-- Clean up resources in test teardown
-
-For detailed testing guidelines, see [docs/testing.md](docs/testing.md).
+For detailed testing guidelines, test types, patterns, and examples, see [docs/testing.md](docs/testing.md).
 
 ---
 

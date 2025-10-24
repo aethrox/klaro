@@ -10,9 +10,9 @@ For the project's initial and MVP (Minimum Viable Product) stages, LangChain's *
 
 ### **2.1. Why ReAct?**
 
-* **Simplicity and Comprehensibility:** ReAct operates with a Thought -> Action -> Observation loop. This structure makes it extremely easy to follow the agent's decision-making process and debugging.
-* **Effective Tool Usage:** This architecture requires the LLM to explicitly state which tool it's choosing and why, and what it plans to do in the next step. This is ideal for tool-focused tasks.
-* **Industry Standard:** One of the most common and well-documented agent types in LangChain, enabling a quick start.
+- **Simplicity and Comprehensibility:** ReAct operates with a Thought -> Action -> Observation loop. This structure makes it extremely easy to follow the agent's decision-making process and debugging.
+- **Effective Tool Usage:** This architecture requires the LLM to explicitly state which tool it's choosing and why, and what it plans to do in the next step. This is ideal for tool-focused tasks.
+- **Industry Standard:** One of the most common and well-documented agent types in LangChain, enabling a quick start.
 
 ## **3. Agent and Tool Integration**
 
@@ -22,8 +22,8 @@ For the agent to use the designed custom tools, these tools must be defined in L
 
 Each custom tool should be packaged as a Tool object. This object contains at least two important parameters:
 
-* **name:** A unique name that the LLM will use to call the tool (e.g., codebase_reader or code_analyzer).
-* **description:** **The most critical part.** This is where the LLM understands what the tool does, when it should be used, and what parameters it takes. The clearer the description, the smarter the agent becomes.
+- **name:** A unique name that the LLM will use to call the tool (e.g., codebase_reader or code_analyzer).
+- **description:** **The most critical part.** This is where the LLM understands what the tool does, when it should be used, and what parameters it takes. The clearer the description, the smarter the agent becomes.
 
 **Example Tool Definition (Python Code Concept):**
 
@@ -85,9 +85,9 @@ Below is a simplified simulation of how the agent completes a task with the abov
 
 **Loop 1:**
 
-* **Thought:** User requested a README file. To start my task, I need to understand the project's file structure first. I'll use the Codebase Explorer tool for this.
-* **Action:** Codebase Explorer(path="https://github.com/user/project-name")
-* **Observation:**
+- **Thought:** User requested a README file. To start my task, I need to understand the project's file structure first. I'll use the Codebase Explorer tool for this.
+- **Action:** Codebase Explorer(path="https://github.com/user/project-name")
+- **Observation:**
   /
   ├── requirements.txt
   ├── src/
@@ -95,28 +95,28 @@ Below is a simplified simulation of how the agent completes a task with the abov
 
 **Loop 2:**
 
-* **Thought:** I see the project structure. The requirements.txt file should contain dependencies. src/main.py looks like the main code. I'll first read requirements.txt with File Reader to learn the dependencies.
-* **Action:** File Reader(file_path="requirements.txt")
-* **Observation:** fastapi\nuvicorn
+- **Thought:** I see the project structure. The requirements.txt file should contain dependencies. src/main.py looks like the main code. I'll first read requirements.txt with File Reader to learn the dependencies.
+- **Action:** File Reader(file_path="requirements.txt")
+- **Observation:** fastapi\nuvicorn
 
 **Loop 3:**
 
-* **Thought:** Okay, this is a FastAPI project. Now I need to read src/main.py to understand the main logic.
-* **Action:** File Reader(file_path="src/main.py")
-* **Observation:** (content of main.py)
+- **Thought:** Okay, this is a FastAPI project. Now I need to read src/main.py to understand the main logic.
+- **Action:** File Reader(file_path="src/main.py")
+- **Observation:** (content of main.py)
 
 **Loop 4:**
 
-* **Thought:** I got the content of main.py. Now I need to use the Code Analyzer tool to understand what this code does and which API endpoints it has.
-* **Action:** Code Analyzer(code_content="...")
-* **Observation:** (JSON output from CodeAnalyzerTool)
+- **Thought:** I got the content of main.py. Now I need to use the Code Analyzer tool to understand what this code does and which API endpoints it has.
+- **Action:** Code Analyzer(code_content="...")
+- **Observation:** (JSON output from CodeAnalyzerTool)
 
 **... (This loop continues until the agent gathers enough information) ...**
 
 **Final Step:**
 
-* **Thought:** I learned the project's purpose (FastAPI), dependencies, installation steps (pip install), and API endpoints. I now have enough information to create the final README file.
-* **Final Answer:**
+- **Thought:** I learned the project's purpose (FastAPI), dependencies, installation steps (pip install), and API endpoints. I now have enough information to create the final README file.
+- **Final Answer:**
   # Project Name
 
   This project is a web service created using FastAPI.
@@ -132,3 +132,9 @@ Below is a simplified simulation of how the agent completes a task with the abov
 ## **6. Next Step: Transition to LangGraph**
 
 While the ReAct architecture is sufficient for MVP, it may fall short in more complex projects or when the agent encounters errors. In Stage 4 of the project, a transition to **LangGraph** is planned, which allows for more flexible, stateful, and cyclical logic flows. This will make the agent more robust and fault-tolerant.
+
+---
+
+**Last Updated**: 2025-10-23
+**Klaro Version**: 1.0
+**Maintained by**: Klaro Development Team

@@ -141,7 +141,7 @@ python main.py /path/to/my_project
 This project is a Python application that implements...
 
 ## Technology Stack
-- **Language:** Python 3.11+
+- **Language:** Python 3.10+ (3.11+ recommended)
 - **Dependencies:**
   - requests==2.28.0
   - pydantic==2.0.0
@@ -645,3 +645,9 @@ For more information, see:
 - [Troubleshooting Guide](troubleshooting.md)
 - [Configuration Guide](configuration.md)
 - [Main README](../README.md)
+
+---
+
+**Last Updated**: 2025-10-23
+**Klaro Version**: 1.0
+**Maintained by**: Klaro Development Team

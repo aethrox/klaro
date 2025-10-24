@@ -1024,3 +1024,9 @@ If you encounter an error not listed here:
 - [Configuration Guide](configuration.md) - Detailed configuration options
 - [Usage Examples](usage-examples.md) - Real-world usage scenarios
 - [Main README](../README.md) - Project overview and quick start
+
+---
+
+**Last Updated**: 2025-10-23
+**Klaro Version**: 1.0
+**Maintained by**: Klaro Development Team

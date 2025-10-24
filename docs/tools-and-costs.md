@@ -8,31 +8,31 @@ This document details the technical tools, libraries, services, and associated c
 
 ### **2.1. Main Development Environment**
 
-* **Programming Language:** Python (3.9+)
-* **Framework:** LangChain, LangGraph
-* **IDE (Development Environment):** Visual Studio Code (Recommended)
-* **Package Management:** Pip and requirements.txt
-* **Version Control:** Git and GitHub
+- **Programming Language:** Python (3.9+)
+- **Framework:** LangChain, LangGraph
+- **IDE (Development Environment):** Visual Studio Code (Recommended)
+- **Package Management:** Pip and requirements.txt
+- **Version Control:** Git and GitHub
 
 ### **2.2. Artificial Intelligence and LLM Services**
 
-* **Large Language Model (LLM):** API-based models that will serve as the agent's brain.
-  * **High-Performance Models:**
-    * **Main Recommendation: Anthropic Claude 3.5 Sonnet** (Currently the best choice for speed, cost, and reasoning balance).
-    * **Alternative: OpenAI GPT-4o** (Another powerful high-performance option).
-  * **Cost-Effective Models (For Smart Routing):**
-    * **Main Recommendation: OpenAI GPT-4o mini** (Excellent for simple tasks with extremely low cost and surprisingly good performance).
-    * **Alternative: Anthropic Claude 3 Haiku** (Another great option that's very fast and cheap).
-* **Vector Database (For RAG - Stage 3):**
-  * **Local/Free:** ChromaDB
-  * **Cloud-Based/Scalable:** Pinecone, Weaviate
-* **Observability and Debugging:**
-  * **LangSmith:** Strongly recommended for visualizing the agent's thought processes, tool usage, and API calls.
+- **Large Language Model (LLM):** API-based models that will serve as the agent's brain.
+  - **High-Performance Models:**
+    - **Main Recommendation: Anthropic Claude 3.5 Sonnet** (Currently the best choice for speed, cost, and reasoning balance).
+    - **Alternative: OpenAI GPT-4o** (Another powerful high-performance option).
+  - **Cost-Effective Models (For Smart Routing):**
+    - **Main Recommendation: OpenAI GPT-4o mini** (Excellent for simple tasks with extremely low cost and surprisingly good performance).
+    - **Alternative: Anthropic Claude 3 Haiku** (Another great option that's very fast and cheap).
+- **Vector Database (For RAG - Stage 3):**
+  - **Local/Free:** ChromaDB
+  - **Cloud-Based/Scalable:** Pinecone, Weaviate
+- **Observability and Debugging:**
+  - **LangSmith:** Strongly recommended for visualizing the agent's thought processes, tool usage, and API calls.
 
 ### **2.3. Dependencies for Custom Tools**
 
-* **Git Integration:** GitPython
-* **Code Analysis (Python):** ast
+- **Git Integration:** GitPython
+- **Code Analysis (Python):** ast
 
 ## **3. Cost Analysis**
 
@@ -49,31 +49,31 @@ LLMs are priced based on text units called tokens.
 Current Price Estimates (As of October 2025, SUBJECT TO CHANGE):
 WARNING: These prices can be changed by API providers at any time. Always CHECK official pricing pages before starting development.
 
-* **High-Performance Models:**
-  * **Claude 3.5 Sonnet:** Input: ~$3.00 / 1M tokens | Output: ~$15.00 / 1M tokens
-  * **GPT-4o:** Input: ~$5.00 / 1M tokens | Output: ~$15.00 / 1M tokens
-* **Cost-Effective Models:**
-  * **GPT-4o mini:** Input: **~$0.15 / 1M tokens** | Output: **~$0.60 / 1M tokens**
-  * **Claude 3 Haiku:** Input: ~$0.25 / 1M tokens | Output: ~$1.25 / 1M tokens
+- **High-Performance Models:**
+  - **Claude 3.5 Sonnet:** Input: ~$3.00 / 1M tokens | Output: ~$15.00 / 1M tokens
+  - **GPT-4o:** Input: ~$5.00 / 1M tokens | Output: ~$15.00 / 1M tokens
+- **Cost-Effective Models:**
+  - **GPT-4o mini:** Input: **~$0.15 / 1M tokens** | Output: **~$0.60 / 1M tokens**
+  - **Claude 3 Haiku:** Input: ~$0.25 / 1M tokens | Output: ~$1.25 / 1M tokens
 
 Estimated Cost of a "README Generation" Task:
 With a smart model routing strategy, this cost can be significantly reduced. Using Sonnet for complex steps and GPT-4o mini for simple steps, with total consumption between 100,000 to 200,000 tokens:
 
-* **Optimized Estimated Single-Use Cost: ~$0.10 - $0.40**
+- **Optimized Estimated Single-Use Cost: ~$0.10 - $0.40**
 
 #### **Cost Optimization Strategies**
 
-* **Smart Model Routing:** This is the most important strategy. Use the right model for each step of the agent.
-  * **Simple Tasks:** Use **GPT-4o mini** or **Claude 3 Haiku** for file listing and simple decision moments like "Is this file important?"
-  * **Complex Tasks:** Switch to **Claude 3.5 Sonnet** for complex tasks requiring consistency such as deep code analysis and final document writing.
-* **Caching:** Cache results of repetitive operations to prevent unnecessary API calls.
-* **Prompt Engineering:** Optimize the system prompt to help the agent reach correct results in fewer steps.
+- **Smart Model Routing:** This is the most important strategy. Use the right model for each step of the agent.
+  - **Simple Tasks:** Use **GPT-4o mini** or **Claude 3 Haiku** for file listing and simple decision moments like "Is this file important?"
+  - **Complex Tasks:** Switch to **Claude 3.5 Sonnet** for complex tasks requiring consistency such as deep code analysis and final document writing.
+- **Caching:** Cache results of repetitive operations to prevent unnecessary API calls.
+- **Prompt Engineering:** Optimize the system prompt to help the agent reach correct results in fewer steps.
 
 #### **Other Potential Costs (During Commercialization):**
 
-* **Hosting/Server Costs:** Vercel, AWS, Google Cloud, etc.
-* **Vector Database:** Pinecone, Weaviate, etc.
-* **Domain:** ~$10-15 annually.
+- **Hosting/Server Costs:** Vercel, AWS, Google Cloud, etc.
+- **Vector Database:** Pinecone, Weaviate, etc.
+- **Domain:** ~$10-15 annually.
 
 ## **4. Budget-Friendly Roadmap for MVP**
 
@@ -82,3 +82,9 @@ With a smart model routing strategy, this cost can be significantly reduced. Usi
 3. **Vector Database:** Run **ChromaDB** on your local machine.
 4. **Code Hosting:** Use a **free GitHub** repository.
 5. **Observability:** Use **LangSmith's free tier** to track your agent's steps.
+
+---
+
+**Last Updated**: 2025-10-23
+**Klaro Version**: 1.0
+**Maintained by**: Klaro Development Team

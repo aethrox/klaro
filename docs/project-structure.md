@@ -138,7 +138,7 @@ Klaro uses a **StateGraph** to manage the agent's workflow:
 Tools provide the agent's capabilities:
 
 | Tool Category | Tools | Purpose |
-|--------------|-------|---------|
+|:-------------|:------|:--------|
 | **Codebase Exploration** | `list_files`, `read_file` | Navigate and read project files |
 | **Code Analysis** | `analyze_code`, `_extract_docstring` | AST-based Python code extraction |
 | **External Knowledge** | `web_search`, `init_knowledge_base`, `retrieve_knowledge` | RAG and external data |
@@ -665,7 +665,7 @@ git commit -m "fix: handle missing .gitignore files gracefully"
 ## Related Documentation
 
 - [Architecture Overview](architecture.md) - High-level system design
-- [Advanced Configuration](advanced-config.md) - Performance tuning and integrations
+- [Advanced Configuration](configuration.md#advanced-configuration) - Performance tuning and integrations
 - [Development Guide](development.md) - Contributing and development workflow
 - [Code Style Guide](code-style.md) - Coding standards
 

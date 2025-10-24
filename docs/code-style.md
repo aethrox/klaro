@@ -22,8 +22,7 @@ This document defines the code style standards for the Klaro project, ensuring c
 
 ### Python Version
 
-- **Minimum**: Python 3.10
-- **Recommended**: Python 3.11+
+- **Required**: Python 3.10+ (3.11+ recommended)
 - **Target**: Write code compatible with Python 3.10-3.12
 
 ### Standards Compliance

@@ -8,9 +8,9 @@ This document details Klaro project's Stage 4 development: the transition from t
 
 While ReAct is an excellent starting point for the MVP stage, it is inherently stateless and based on a simple Thought -> Action -> Observation loop. This can lead to challenges such as:
 
-* **Error Management:** When a tool fails or produces an unexpected output, the ReAct agent typically terminates the loop or struggles to manage the error.
-* **Complex Planning:** It's difficult for the agent to follow complex multi-step plans or pivot to an alternative path when a step fails using ReAct.
-* **Cyclical Logic:** Creating cyclical logic like "read files until sufficient information is gathered" is not natural.
+- **Error Management:** When a tool fails or produces an unexpected output, the ReAct agent typically terminates the loop or struggles to manage the error.
+- **Complex Planning:** It's difficult for the agent to follow complex multi-step plans or pivot to an alternative path when a step fails using ReAct.
+- **Cyclical Logic:** Creating cyclical logic like "read files until sufficient information is gathered" is not natural.
 
 LangGraph provides a graph data structure to solve these problems. This structure provides full control by defining the agent's logic flow with nodes and edges.
 
@@ -65,15 +65,21 @@ Below is a simplified diagram of the LangGraph flow for a README creation task:
 
 The edge after the check_completeness node is the agent's most powerful feature.
 
-* **If** the LLM says "I need more information," the edge redirects the flow back to the plan_step node.
-* **If** the LLM says "I have all the information," the edge directs the flow to the Final Answer node, terminating the loop.
-* **If** execute_tool returns an error, the error_log in state is updated and the flow returns to plan_step. This way the agent can say "This tool didn't work, I should try something else."
+- **If** the LLM says "I need more information," the edge redirects the flow back to the plan_step node.
+- **If** the LLM says "I have all the information," the edge directs the flow to the Final Answer node, terminating the loop.
+- **If** execute_tool returns an error, the error_log in state is updated and the flow returns to plan_step. This way the agent can say "This tool didn't work, I should try something else."
 
 ## **5. Conclusion and Advantages**
 
 The transition to LangGraph will transform the Klaro agent from simple tool automation into a robust and intelligent system with the following capabilities:
 
-* **Robustness:** Can manage tool errors and try alternative paths.
-* **Advanced Logic:** Can plan and execute complex, multi-step tasks.
-* **Observability:** Thanks to the graph structure, the agent's decision-making process becomes much more transparent and easy to follow.
-* **Flexibility:** Adding new tools or logic flows will be as easy as adding new nodes and edges to the graph.
+- **Robustness:** Can manage tool errors and try alternative paths.
+- **Advanced Logic:** Can plan and execute complex, multi-step tasks.
+- **Observability:** Thanks to the graph structure, the agent's decision-making process becomes much more transparent and easy to follow.
+- **Flexibility:** Adding new tools or logic flows will be as easy as adding new nodes and edges to the graph.
+
+---
+
+**Last Updated**: 2025-10-23
+**Klaro Version**: 1.0
+**Maintained by**: Klaro Development Team

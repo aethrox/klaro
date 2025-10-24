@@ -21,11 +21,15 @@ This guide provides comprehensive information for developers working on Klaro, c
 
 ### Prerequisites
 
-- **Python**: 3.10 or higher (3.11 recommended)
+- **Python**: 3.10+ (3.11+ recommended)
 - **Git**: For version control
 - **Virtual Environment**: venv or virtualenv
 - **OpenAI API Key**: Required for LLM and embeddings
 - **IDE**: VS Code, PyCharm, or your preferred editor
+
+For basic installation, see the [README.md installation guide](../README.md#installation).
+
+This guide covers development-specific setup:
 
 ### Initial Setup
 
@@ -34,22 +38,7 @@ This guide provides comprehensive information for developers working on Klaro, c
 git clone https://github.com/YOUR_USERNAME/klaro.git
 cd klaro
 
-# Create and activate virtual environment
-python -m venv venv
-
-# Activate (Windows)
-venv\Scripts\activate
-
-# Activate (macOS/Linux)
-source venv/bin/activate
-
-# Upgrade pip
-pip install --upgrade pip
-
-# Install project dependencies
-pip install -r requirements.txt
-
-# Install development dependencies
+# Install development dependencies (after following README.md installation)
 pip install -r requirements-dev.txt
 ```
 
