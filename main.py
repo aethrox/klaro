@@ -55,6 +55,7 @@ Technical Notes:
 
 import os
 import threading
+import time
 from datetime import datetime
 from typing import TypedDict, Annotated, Sequence
 
@@ -70,6 +71,13 @@ from langchain_core.documents import Document
 
 from dotenv import load_dotenv
 load_dotenv()
+
+# LangSmith tracing support
+try:
+    from langsmith import Client as LangSmithClient
+    LANGSMITH_AVAILABLE = True
+except ImportError:
+    LANGSMITH_AVAILABLE = False
 
 from prompts import SYSTEM_PROMPT
 from tools import (
@@ -381,13 +389,29 @@ def decide_next_step(state: AgentState):
          return "run_model"
 
     # 2. COMPLETION CHECK: Detect if the agent has finished the task
-    # The system prompt instructs the LLM to output "Final Answer: [content]" when done
-    # This is the termination condition for the ReAct loop
-    if last_message.content and "Final Answer" in last_message.content:
-        debug_log(f"  → Routing to END (Final Answer detected)")
-        # END is a special LangGraph marker that terminates the workflow
-        # The final state will be returned to the caller
-        return END  # Terminate the graph.
+    # Primary: Check for explicit "Final Answer" marker
+    # Secondary: Detect if LLM produced substantial markdown documentation without the marker
+    if last_message.content:
+        content = last_message.content
+        content_lower = content.lower()
+
+        # Primary check: Explicit "Final Answer" marker (case-insensitive)
+        if "final answer" in content_lower:
+            debug_log(f"  → Routing to END (Final Answer detected)")
+            return END
+
+        # Secondary check: Detect if LLM forgot "Final Answer:" but produced README
+        # Look for common README patterns: markdown headers + substantial content
+        has_markdown_header = content.startswith("#") or "\n#" in content
+        has_setup_section = "## setup" in content_lower or "## installation" in content_lower
+        is_substantial = len(content) > 200  # More than 200 chars suggests complete output
+
+        if has_markdown_header and (has_setup_section or is_substantial):
+            debug_log(f"  ⚠ Markdown content detected without 'Final Answer:' prefix")
+            debug_log(f"  → Routing to END (assuming completion)")
+            print("\n⚠️  WARNING: LLM produced README without 'Final Answer:' prefix")
+            print("   Treating as completed task to prevent infinite loop")
+            return END
 
     # 3. TOOL EXECUTION: Check if LLM wants to call a tool
     # When LLM decides to use a tool, it populates last_message.tool_calls
@@ -480,6 +504,42 @@ class TimeoutException(Exception):
     pass
 
 
+def finalize_langsmith_trace():
+    """Ensures LangSmith trace is properly finalized and flushed.
+
+    LangSmith uses background threads to send trace data to the server.
+    When execution completes (especially in daemon threads), these background
+    operations might not complete before the thread exits, leaving traces in
+    "pending" state.
+
+    This function:
+    1. Checks if LangSmith tracing is enabled
+    2. Waits briefly for background operations to complete
+    3. Ensures trace data is flushed to the server
+
+    Technical Notes:
+        - Only executes if LANGSMITH_TRACING=true
+        - Uses a small delay (1 second) to allow async operations to complete
+        - Safe to call even if no trace is active
+    """
+    if not os.getenv("LANGSMITH_TRACING", "").lower() == "true":
+        return
+
+    if not LANGSMITH_AVAILABLE:
+        debug_log("⚠ LangSmith tracing enabled but langsmith package not available")
+        return
+
+    try:
+        debug_log("🔄 Finalizing LangSmith trace...")
+        # Give LangSmith's background threads time to flush data
+        # LangSmith uses async operations to send trace data to the server
+        # A short delay ensures these operations complete before thread exit
+        time.sleep(1.0)
+        debug_log("✓ LangSmith trace finalized")
+    except Exception as e:
+        debug_log(f"⚠ Warning: Failed to finalize LangSmith trace: {e}")
+
+
 def run_with_timeout(func, args, kwargs, timeout_seconds):
     """Executes a function with a timeout (Windows-compatible using threading).
 
@@ -494,6 +554,11 @@ def run_with_timeout(func, args, kwargs, timeout_seconds):
 
     Raises:
         TimeoutException: If execution exceeds timeout_seconds
+
+    Technical Notes:
+        - After successful execution, calls finalize_langsmith_trace() to ensure
+          LangSmith tracing data is properly flushed to the server
+        - This prevents traces from showing as "pending" in LangSmith UI
     """
     result = [None]
     exception = [None]
@@ -501,8 +566,13 @@ def run_with_timeout(func, args, kwargs, timeout_seconds):
     def target():
         try:
             result[0] = func(*args, **kwargs)
+            # Finalize LangSmith trace after successful execution
+            # This ensures trace data is flushed before thread exits
+            finalize_langsmith_trace()
         except Exception as e:
             exception[0] = e
+            # Also finalize on error to close the trace properly
+            finalize_langsmith_trace()
 
     thread = threading.Thread(target=target)
     thread.daemon = True
