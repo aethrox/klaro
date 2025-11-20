@@ -5,10 +5,23 @@
 </div>
 <br />
 <p align="center">
-  <a href="https://github.com/aethrox/klaro/actions/workflows/main.yml"><img alt="Build Status" src="https://img.shields.io/github/actions/workflow/status/aethrox/klaro/main.yml?style=for-the-badge"></a>
   <a href="./LICENSE"><img alt="License" src="https://img.shields.io/github/license/aethrox/klaro?style=for-the-badge&color=blue"></a>
   <a href="#"><img alt="Python Version" src="https://img.shields.io/badge/python-3.11+-blue?style=for-the-badge&logo=python"></a>
 </p>
+
+## 🛑 Project Halted Temporarily
+
+This project has been **temporarily halted** due to private reasons.
+
+### Status Update
+
+* Development is currently **on hold**.
+* We plan to resume work on this project at a future date.
+* No support or feature development will take place during this pause.
+
+Thank you for your understanding.
+
+---
 
 ## Overview
 `Klaro` is an **autonomous AI agent** designed to solve the problem of neglected technical documentation. It works by autonomously navigating your codebase, performing deep logic analysis, and generating clear, professional, and up-to-date documentation (such as README files and API references) with minimal human intervention.
@@ -32,9 +45,6 @@ Klaro automates the entire documentation process. It employs an advanced **Pure 
 - **Agent Core:** LangGraph State Machine (Stage 4 Completed)
 - **Vector DB/RAG:** ChromaDB, OpenAI Embeddings
 - **Code Analysis:** `ast` (Abstract Syntax Tree)
-
-## 🚧 Status: Under Active Development
-This project is currently in active development, having completed **Stages 2 (Agent Core)**, **3 (RAG/Quality)**, and **4 (LangGraph Integration)** of the roadmap.
 
 ## 📦 Installation
 
